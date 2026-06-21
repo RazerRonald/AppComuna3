@@ -64,14 +64,212 @@ service cloud.firestore {
       ];
     }
 
+    function stringNoVacio(valor, max) {
+      return valor is string
+        && valor.size() > 0
+        && valor.size() <= max;
+    }
+
+    function stringOpcional(data, campo, max) {
+      let valor = data.get(campo, null);
+      return valor == null
+        || (valor is string && valor.size() <= max);
+    }
+
+    function camposCrearNoticia() {
+      return [
+        'titulo',
+        'cuerpo',
+        'fechaPublicacion',
+        'autorId',
+        'media_drive_id',
+        'media_tipo',
+        'media_url',
+        'media_embed_url',
+        'media_view_url',
+        'media_mime',
+        'media_nombre',
+        'media_folder_id'
+      ];
+    }
+
+    function camposNoticia() {
+      return [
+        'titulo',
+        'cuerpo',
+        'fechaPublicacion',
+        'autorId',
+        'media_drive_id',
+        'media_tipo',
+        'media_url',
+        'media_embed_url',
+        'media_view_url',
+        'media_mime',
+        'media_nombre',
+        'media_folder_id',
+        'fechaActualizacion',
+        'portadaUrl'
+      ];
+    }
+
+    function camposEditablesNoticia() {
+      return [
+        'titulo',
+        'cuerpo',
+        'fechaActualizacion',
+        'media_drive_id',
+        'media_tipo',
+        'media_url',
+        'media_embed_url',
+        'media_view_url',
+        'media_mime',
+        'media_nombre',
+        'media_folder_id'
+      ];
+    }
+
+    function textoNoticiaValido(data) {
+      return stringNoVacio(data.titulo, 200)
+        && stringNoVacio(data.cuerpo, 12000);
+    }
+
+    function mediaNoticiaVacia(data) {
+      return data.media_drive_id == null
+        && data.media_tipo == null
+        && data.media_url == null
+        && data.media_embed_url == null
+        && data.media_view_url == null
+        && data.media_mime == null
+        && data.media_nombre == null
+        && data.media_folder_id == null;
+    }
+
+    function mediaNoticiaActualValida(data) {
+      return (data.media_tipo == 'imagen' || data.media_tipo == 'video')
+        && stringNoVacio(data.media_drive_id, 256)
+        && stringNoVacio(data.media_url, 1200)
+        && stringNoVacio(data.media_embed_url, 1200)
+        && stringOpcional(data, 'media_view_url', 1200)
+        && stringNoVacio(data.media_mime, 160)
+        && stringNoVacio(data.media_nombre, 220)
+        && stringNoVacio(data.media_folder_id, 256);
+    }
+
+    function mediaNoticiaValida(data) {
+      return (
+          data.keys().hasAll([
+            'media_drive_id',
+            'media_tipo',
+            'media_url',
+            'media_embed_url',
+            'media_view_url',
+            'media_mime',
+            'media_nombre',
+            'media_folder_id'
+          ])
+          && (mediaNoticiaVacia(data) || mediaNoticiaActualValida(data))
+        )
+        || (
+          !data.keys().hasAny(['media_tipo'])
+          && stringOpcional(data, 'portadaUrl', 1200)
+        );
+    }
+
+    function noticiaValida(data) {
+      return data.keys().hasOnly(camposNoticia())
+        && textoNoticiaValido(data)
+        && data.autorId is string
+        && data.fechaPublicacion is timestamp
+        && mediaNoticiaValida(data)
+        && stringOpcional(data, 'portadaUrl', 1200);
+    }
+
+    function camposCrearEvento() {
+      return [
+        'titulo',
+        'descripcion',
+        'fecha',
+        'fecha_fin',
+        'lugar',
+        'autorId',
+        'creadoEn'
+      ];
+    }
+
+    function camposEvento() {
+      return [
+        'titulo',
+        'descripcion',
+        'fecha',
+        'fecha_fin',
+        'lugar',
+        'autorId',
+        'creadoEn',
+        'actualizadoEn'
+      ];
+    }
+
+    function camposEditablesEvento() {
+      return [
+        'titulo',
+        'descripcion',
+        'fecha',
+        'fecha_fin',
+        'lugar',
+        'actualizadoEn'
+      ];
+    }
+
+    function eventoValido(data) {
+      return data.keys().hasOnly(camposEvento())
+        && stringNoVacio(data.titulo, 160)
+        && stringNoVacio(data.descripcion, 4000)
+        && stringNoVacio(data.lugar, 240)
+        && data.autorId is string
+        && data.fecha is timestamp
+        && data.fecha_fin is timestamp
+        && data.fecha_fin > data.fecha;
+    }
+
     match /noticias/{noticiaId} {
       allow read: if true;
-      allow write: if esEdil();
+
+      allow create: if esEdil()
+        && request.resource.data.keys().hasOnly(camposCrearNoticia())
+        && request.resource.data.keys().hasAll(camposCrearNoticia())
+        && textoNoticiaValido(request.resource.data)
+        && request.resource.data.autorId == request.auth.uid
+        && request.resource.data.fechaPublicacion == request.time
+        && mediaNoticiaVacia(request.resource.data);
+
+      allow update: if esEdil()
+        && noticiaValida(request.resource.data)
+        && request.resource.data.autorId == resource.data.autorId
+        && request.resource.data.fechaPublicacion == resource.data.fechaPublicacion
+        && request.resource.data.fechaActualizacion == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposEditablesNoticia());
+
+      allow delete: if esEdil();
     }
 
     match /eventos/{eventoId} {
       allow read: if true;
-      allow write: if esEdil();
+
+      allow create: if esEdil()
+        && request.resource.data.keys().hasOnly(camposCrearEvento())
+        && request.resource.data.keys().hasAll(camposCrearEvento())
+        && eventoValido(request.resource.data)
+        && request.resource.data.autorId == request.auth.uid
+        && request.resource.data.creadoEn == request.time;
+
+      allow update: if esEdil()
+        && eventoValido(request.resource.data)
+        && request.resource.data.autorId == resource.data.autorId
+        && request.resource.data.creadoEn == resource.data.creadoEn
+        && request.resource.data.actualizadoEn == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposEditablesEvento());
+
+      allow delete: if esEdil();
     }
 
     match /info_carta_inicial/{solicitudId} {
