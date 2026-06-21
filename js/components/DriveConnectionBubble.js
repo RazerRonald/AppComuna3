@@ -138,6 +138,7 @@ const DriveConnectionBubble = {
 
     try {
       await DriveAuthModel.solicitarToken({
+        forceConsent: estado.estado === 'sin_token',
         forceRefresh: estado.estado !== 'sin_token',
       });
       Toast.exito(i18n.drive.conectado);
