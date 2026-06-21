@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function esEdil() {
+      return autenticado()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol == 'edil';
+    }
+
+    function finalizacionNoSolicitada() {
+      return (
+          !resource.data.keys().hasAny(['finalizacion_solicitada'])
+          || resource.data.finalizacion_solicitada == false
+          || resource.data.finalizacion_solicitada == null
+        )
+        && (
+          !resource.data.keys().hasAny(['finalizacion_estado'])
+          || resource.data.finalizacion_estado == null
+        );
+    }
+
+    function puedeSolicitarFinalizacion() {
+      return autenticado()
+        && resource.data.uid_estudiante == request.auth.uid
+        && resource.data.estado == 'Expedida'
+        && finalizacionNoSolicitada()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'finalizacion_solicitada',
+          'finalizacion_estado',
+          'fecha_solicitud_finalizacion'
+        ])
+        && request.resource.data.finalizacion_solicitada == true
+        && request.resource.data.finalizacion_estado == 'Pendiente'
+        && request.resource.data.fecha_solicitud_finalizacion == request.time;
+    }
+
+    match /noticias/{noticiaId} {
+      allow read: if true;
+      allow write: if esEdil();
+    }
+
+    match /eventos/{eventoId} {
+      allow read: if true;
+      allow write: if esEdil();
+    }
+
+    match /info_carta_inicial/{solicitudId} {
+      allow get, list: if autenticado()
+        && (esEdil() || resource.data.uid_estudiante == request.auth.uid);
+
+      allow create: if autenticado()
+        && request.resource.data.uid_estudiante == request.auth.uid
+        && request.resource.data.estado == 'Pendiente'
+        && request.resource.data.nombre_completo is string
+        && request.resource.data.tipo_documento is string
+        && request.resource.data.numero_documento is string
+        && request.resource.data.ciudad_documento is string
+        && request.resource.data.universidad is string
+        && request.resource.data.carrera is string
+        && request.resource.data.semestre_actual is int
+        && request.resource.data.semestre_actual > 0
+        && request.resource.data.horas_a_realizar is number
+        && request.resource.data.lugar_realizacion is string
+        && request.resource.data.documento_expedido_id == null
+        && request.resource.data.documento_expedido_url == null
+        && request.resource.data.finalizacion_solicitada == false
+        && request.resource.data.finalizacion_estado == null
+        && request.resource.data.fecha_solicitud_finalizacion == null
+        && request.resource.data.fecha_expedicion_finalizacion == null
+        && request.resource.data.documento_finalizacion_id == null
+        && request.resource.data.documento_finalizacion_url == null;
+
+      allow update: if esEdil() || puedeSolicitarFinalizacion();
+      allow delete: if esEdil();
+    }
+
+    match /info_carta_documentos/{solicitudId} {
+      allow read, write: if esEdil();
+    }
+
+    match /users/{userId} {
+      allow read: if autenticado()
+        && (request.auth.uid == userId || esEdil());
+
+      allow create: if autenticado()
+        && request.auth.uid == userId
+        && request.resource.data.rol == 'estudiante';
+
+      allow update, delete: if esEdil();
+    }
+  }
+}

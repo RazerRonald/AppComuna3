@@ -1,0 +1,196 @@
+/**
+ * @fileoverview Gestion de imagenes y videos de noticias en Google Drive.
+ *
+ * Usa una carpeta independiente llamada ContenidoJAL para el contenido publico
+ * de noticias y crea una subcarpeta por cada noticia.
+ *
+ * @module models/NoticiaMediaModel
+ */
+
+import { DRIVE_CONFIG } from '../config/firebase.config.js';
+import DriveAuthModel from './DriveAuthModel.js';
+
+const CARPETA_CONTENIDO = 'ContenidoJAL';
+const MIME_FOLDER = 'application/vnd.google-apps.folder';
+const TIPOS_PERMITIDOS = ['image/', 'video/'];
+
+const NoticiaMediaModel = {
+  /**
+   * Sube o reemplaza el archivo multimedia de una noticia.
+   *
+   * @param {File} archivo
+   * @param {Object} noticia
+   * @returns {Promise<Object>}
+   */
+  async subirContenidoNoticia(archivo, noticia) {
+    this._validarArchivo(archivo);
+    await this._solicitarToken();
+
+    const carpetaRaizId = await this._obtenerCarpetaContenido();
+    const carpetaNoticiaId = await this._obtenerOCrearCarpeta(
+      this._buildNombreCarpetaNoticia(noticia),
+      carpetaRaizId,
+    );
+    const nombreArchivo = this._buildNombreArchivo(archivo, noticia);
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({
+      name: nombreArchivo,
+      parents: [carpetaNoticiaId],
+    })], { type: 'application/json' }));
+    form.append('file', archivo);
+
+    const respuesta = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,thumbnailLink',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${DriveAuthModel.getAccessToken()}` },
+        body: form,
+      },
+    );
+
+    if (!respuesta.ok) {
+      const err = await respuesta.json();
+      throw new Error(err?.error?.message || 'Error subiendo contenido a Drive');
+    }
+
+    const file = await respuesta.json();
+
+    await window.gapi.client.drive.permissions.create({
+      fileId: file.id,
+      resource: { role: 'reader', type: 'anyone' },
+    });
+
+    const esVideo = archivo.type.startsWith('video/');
+
+    if (noticia.media_drive_id && noticia.media_drive_id !== file.id) {
+      await this._eliminarArchivoSiExiste(noticia.media_drive_id);
+    }
+
+    return {
+      media_drive_id: file.id,
+      media_folder_id: carpetaNoticiaId,
+      media_nombre: file.name || nombreArchivo,
+      media_mime: file.mimeType || archivo.type,
+      media_tipo: esVideo ? 'video' : 'imagen',
+      media_url: this._buildThumbnailUrl(file.id, esVideo ? 900 : 1200),
+      media_view_url: file.webViewLink || '',
+      media_embed_url: `https://drive.google.com/file/d/${file.id}/preview`,
+    };
+  },
+
+  /**
+   * Elimina un archivo de Drive creado por la aplicacion.
+   *
+   * @param {string} fileId
+   * @returns {Promise<void>}
+   */
+  async eliminarArchivo(fileId) {
+    if (!fileId) return;
+    await this._solicitarToken();
+    await this._eliminarArchivoSiExiste(fileId);
+  },
+
+  async _obtenerCarpetaContenido() {
+    const carpetaConfiguradaId = String(DRIVE_CONFIG.CONTENT_FOLDER_ID || '').trim();
+    if (carpetaConfiguradaId) return carpetaConfiguradaId;
+
+    return this._obtenerOCrearCarpeta(CARPETA_CONTENIDO);
+  },
+
+  async _inicializarDrive() {
+    await DriveAuthModel.inicializarDrive();
+  },
+
+  async _solicitarToken() {
+    await DriveAuthModel.solicitarToken();
+  },
+
+  async _obtenerOCrearCarpeta(nombre, parentId = null) {
+    const nombreCarpeta = this._sanitizarNombre(nombre);
+    const parentSeguro = String(parentId || '').trim();
+    const filtros = [
+      `mimeType = '${MIME_FOLDER}'`,
+      `name = '${this._escaparQueryDrive(nombreCarpeta)}'`,
+      'trashed = false',
+    ];
+
+    filtros.push(parentSeguro
+      ? `'${this._escaparQueryDrive(parentSeguro)}' in parents`
+      : "'root' in parents");
+
+    const queryDrive = filtros.join(' and ');
+
+    const existentes = await window.gapi.client.drive.files.list({
+      q: queryDrive,
+      spaces: 'drive',
+      pageSize: 1,
+      fields: 'files(id,name)',
+    });
+
+    const carpetaExistente = existentes.result?.files?.[0];
+    if (carpetaExistente?.id) return carpetaExistente.id;
+
+    const creada = await window.gapi.client.drive.files.create({
+      resource: {
+        name: nombreCarpeta,
+        mimeType: MIME_FOLDER,
+        ...(parentSeguro ? { parents: [parentSeguro] } : {}),
+      },
+      fields: 'id,name',
+    });
+
+    return creada.result.id;
+  },
+
+  async _eliminarArchivoSiExiste(fileId) {
+    try {
+      await window.gapi.client.drive.files.delete({ fileId });
+    } catch (err) {
+      console.warn('[NoticiaMediaModel._eliminarArchivoSiExiste] No se pudo eliminar archivo anterior', err);
+    }
+  },
+
+  _validarArchivo(archivo) {
+    if (!archivo || !(archivo instanceof File)) {
+      throw new Error('Selecciona una imagen o video para la noticia.');
+    }
+
+    if (!TIPOS_PERMITIDOS.some((tipo) => archivo.type.startsWith(tipo))) {
+      throw new Error('El archivo de la noticia debe ser una imagen o un video.');
+    }
+  },
+
+  _buildNombreCarpetaNoticia(noticia) {
+    return `${noticia.titulo || 'Noticia'} - ${noticia.id}`;
+  },
+
+  _buildNombreArchivo(archivo, noticia) {
+    const extension = this._obtenerExtension(archivo.name);
+    return `${this._sanitizarNombre(noticia.titulo || 'Noticia')}${extension}`;
+  },
+
+  _buildThumbnailUrl(fileId, size) {
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${size}`;
+  },
+
+  _obtenerExtension(nombre) {
+    const match = String(nombre || '').match(/\.[a-zA-Z0-9]+$/);
+    return match ? match[0].toLowerCase() : '';
+  },
+
+  _sanitizarNombre(nombre) {
+    return (nombre || 'Noticia')
+      .trim()
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, 100)
+      || 'Noticia';
+  },
+
+  _escaparQueryDrive(valor) {
+    return String(valor).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  },
+};
+
+export default NoticiaMediaModel;
