@@ -10,6 +10,10 @@ import EventoModel from '../models/EventoModel.js';
 import AuthModel   from '../models/AuthModel.js';
 import { i18n }    from '../config/i18n.js';
 
+const MAX_TITULO_EVENTO = 160;
+const MAX_DESCRIPCION_EVENTO = 4000;
+const MAX_LUGAR_EVENTO = 240;
+
 const EventoController = {
   /**
    * Obtiene todos los eventos (pasados y futuros) ordenados de más reciente a
@@ -71,11 +75,24 @@ const EventoController = {
    * @returns {Promise<void>}
    */
   async crear(datos, { onLoading, onSuccess, onError }) {
-    if (!this._validarCampos(datos)) {
+    const datosLimpios = this._normalizarDatos(datos);
+
+    if (!this._validarCampos(datosLimpios)) {
       onError(i18n.eventos.camposRequeridos);
       return;
     }
-    if (!this._rangoFechasValido(datos)) {
+
+    if (!this._validarLongitudes(datosLimpios)) {
+      onError(i18n.eventos.textoMuyLargo);
+      return;
+    }
+
+    if (!this._fechasValidas(datosLimpios)) {
+      onError(i18n.eventos.fechaInvalida);
+      return;
+    }
+
+    if (!this._rangoFechasValido(datosLimpios)) {
       onError(i18n.eventos.finAntesDeInicio);
       return;
     }
@@ -89,11 +106,11 @@ const EventoController = {
     onLoading(true);
     try {
       const id = await EventoModel.create({
-        titulo:      datos.titulo.trim(),
-        descripcion: datos.descripcion.trim(),
-        fecha:       datos.fecha,
-        fecha_fin:   datos.fecha_fin,
-        lugar:       datos.lugar.trim(),
+        titulo:      datosLimpios.titulo,
+        descripcion: datosLimpios.descripcion,
+        fecha:       datosLimpios.fecha,
+        fecha_fin:   datosLimpios.fecha_fin,
+        lugar:       datosLimpios.lugar,
         autorId:     sesion.uid,
       });
       onSuccess(id);
@@ -117,11 +134,24 @@ const EventoController = {
    * @returns {Promise<void>}
    */
   async actualizar(id, datos, { onLoading, onSuccess, onError }) {
-    if (!this._validarCampos(datos)) {
+    const datosLimpios = this._normalizarDatos(datos);
+
+    if (!this._validarCampos(datosLimpios)) {
       onError(i18n.eventos.camposRequeridos);
       return;
     }
-    if (!this._rangoFechasValido(datos)) {
+
+    if (!this._validarLongitudes(datosLimpios)) {
+      onError(i18n.eventos.textoMuyLargo);
+      return;
+    }
+
+    if (!this._fechasValidas(datosLimpios)) {
+      onError(i18n.eventos.fechaInvalida);
+      return;
+    }
+
+    if (!this._rangoFechasValido(datosLimpios)) {
       onError(i18n.eventos.finAntesDeInicio);
       return;
     }
@@ -129,11 +159,11 @@ const EventoController = {
     onLoading(true);
     try {
       await EventoModel.update(id, {
-        titulo:      datos.titulo.trim(),
-        descripcion: datos.descripcion.trim(),
-        fecha:       datos.fecha,
-        fecha_fin:   datos.fecha_fin,
-        lugar:       datos.lugar.trim(),
+        titulo:      datosLimpios.titulo,
+        descripcion: datosLimpios.descripcion,
+        fecha:       datosLimpios.fecha,
+        fecha_fin:   datosLimpios.fecha_fin,
+        lugar:       datosLimpios.lugar,
       });
       onSuccess();
     } catch (err) {
@@ -193,6 +223,49 @@ const EventoController = {
       datos?.fecha_fin &&
       datos?.lugar?.trim()
     );
+  },
+
+  /**
+   * Normaliza los datos del formulario.
+   *
+   * @private
+   * @param {Object} datos
+   * @returns {Object}
+   */
+  _normalizarDatos(datos) {
+    return {
+      ...datos,
+      titulo: String(datos?.titulo || '').trim(),
+      descripcion: String(datos?.descripcion || '').trim(),
+      fecha: String(datos?.fecha || '').trim(),
+      fecha_fin: String(datos?.fecha_fin || '').trim(),
+      lugar: String(datos?.lugar || '').trim(),
+    };
+  },
+
+  /**
+   * Evita guardar textos accidentalmente enormes.
+   *
+   * @private
+   * @param {Object} datos
+   * @returns {boolean}
+   */
+  _validarLongitudes(datos) {
+    return datos.titulo.length <= MAX_TITULO_EVENTO
+      && datos.descripcion.length <= MAX_DESCRIPCION_EVENTO
+      && datos.lugar.length <= MAX_LUGAR_EVENTO;
+  },
+
+  /**
+   * Valida que las fechas existan y sean parseables.
+   *
+   * @private
+   * @param {Object} datos
+   * @returns {boolean}
+   */
+  _fechasValidas(datos) {
+    return !Number.isNaN(new Date(datos.fecha).getTime())
+      && !Number.isNaN(new Date(datos.fecha_fin).getTime());
   },
 
   /**

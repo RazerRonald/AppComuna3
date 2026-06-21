@@ -69,14 +69,20 @@ const PublicoView = {
     await NoticiaController.listar({
       onLoading: (v) => this._setSkeletonNoticias(v),
       onSuccess: (noticias) => this._renderNoticiasHome(noticias.slice(0, 3)),
-      onError:   (msg) => Toast.error(msg),
+      onError:   (msg) => {
+        this._renderContainerError('noticias-home-container', i18n.noticias.errorCarga, msg, 'bi-exclamation-triangle');
+        Toast.error(msg);
+      },
     }, 3);
 
     // Cargar eventos recientes (incluye pasados, más recientes primero)
     await EventoController.listarRecientes({
       onLoading: (v) => this._setSkeletonEventos(v),
       onSuccess: (eventos) => this._renderEventosHome(eventos.slice(0, 4)),
-      onError:   (msg) => Toast.error(msg),
+      onError:   (msg) => {
+        this._renderContainerError('eventos-home-container', i18n.eventos.errorCarga, msg, 'bi-exclamation-triangle');
+        Toast.error(msg);
+      },
     });
   },
 
@@ -211,7 +217,10 @@ const PublicoView = {
           this._renderNoticiasListado(filtradas, Boolean(this._normalizarBusqueda(termino)));
         });
       },
-      onError: (msg) => Toast.error(msg),
+      onError: (msg) => {
+        this._renderContainerError('noticias-lista', i18n.noticias.errorCarga, msg, 'bi-exclamation-triangle');
+        Toast.error(msg);
+      },
     });
   },
 
@@ -347,7 +356,10 @@ const PublicoView = {
           this._renderEventosListado(filtrados, Boolean(this._normalizarBusqueda(termino)));
         });
       },
-      onError: (msg) => Toast.error(msg),
+      onError: (msg) => {
+        this._renderContainerError('eventos-lista', i18n.eventos.errorCarga, msg, 'bi-exclamation-triangle');
+        Toast.error(msg);
+      },
     });
   },
 
@@ -728,7 +740,7 @@ const PublicoView = {
 
     return {
       tipo,
-      url: usarProxy ? this._buildProxyImagenNoticiaUrl(noticia.id) : urlOriginal,
+      url: usarProxy ? this._buildProxyImagenNoticiaUrl(noticia) : urlOriginal,
       embedUrl: noticia.media_embed_url || '',
     };
   },
@@ -737,8 +749,12 @@ const PublicoView = {
    * Construye la URL del proxy CDN para imagenes de noticias.
    * @private
    */
-  _buildProxyImagenNoticiaUrl(noticiaId) {
-    return `/api/noticias-media?id=${encodeURIComponent(noticiaId)}`;
+  _buildProxyImagenNoticiaUrl(noticia) {
+    const params = new URLSearchParams({ id: noticia.id });
+    if (noticia.media_drive_id) {
+      params.set('v', noticia.media_drive_id);
+    }
+    return `/api/noticias-media?${params.toString()}`;
   },
 
   /**
@@ -999,16 +1015,29 @@ const PublicoView = {
   },
 
   /**
+   * Muestra un estado de error dentro de un contenedor de cards.
+   * @private
+   */
+  _renderContainerError(containerId, titulo, detalle, icono) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = this._buildEmptyState(titulo, detalle, icono);
+  },
+
+  /**
    * Construye el HTML de estado vacío.
    * @private
    */
   _buildEmptyState(titulo, subtitulo, icono) {
+    const safeTitulo = this._esc(titulo);
+    const safeSubtitulo = this._esc(subtitulo);
+    const safeIcono = this._esc(icono);
     return `
       <div class="col-12">
         <div class="empty-state">
-          <div class="empty-icon"><i class="bi ${icono}"></i></div>
-          <h4>${titulo}</h4>
-          ${subtitulo ? `<p>${subtitulo}</p>` : ''}
+          <div class="empty-icon"><i class="bi ${safeIcono}"></i></div>
+          <h4>${safeTitulo}</h4>
+          ${safeSubtitulo ? `<p>${safeSubtitulo}</p>` : ''}
         </div>
       </div>
     `;

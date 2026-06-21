@@ -104,8 +104,10 @@ export const i18n = {
     eliminadoOk:     'Noticia eliminada.',
     errorGuardar:    'Error al guardar la noticia.',
     errorEliminar:   'Error al eliminar la noticia.',
+    errorCarga:      'No se pudieron cargar las noticias.',
     camposRequeridos:'Completa todos los campos obligatorios.',
     archivoRequerido:'Selecciona una imagen o video para la noticia.',
+    textoMuyLargo:   'El titulo o contenido de la noticia supera el tamano permitido.',
   },
 
   // ─── Eventos ─────────────────────────────────────────────────────────
@@ -137,8 +139,11 @@ export const i18n = {
     calIcs:          'Apple / Outlook (.ics)',
     errorGuardar:    'Error al guardar el evento.',
     errorEliminar:   'Error al eliminar el evento.',
+    errorCarga:      'No se pudieron cargar los eventos.',
     camposRequeridos:'Completa todos los campos del evento.',
+    fechaInvalida:   'Revisa las fechas del evento. Deben ser fechas validas.',
     finAntesDeInicio:'La fecha y hora de fin debe ser posterior a la de inicio.',
+    textoMuyLargo:   'El titulo, descripcion o lugar del evento supera el tamano permitido.',
   },
 
   // ─── Trámite / Carta Barrial ──────────────────────────────────────────

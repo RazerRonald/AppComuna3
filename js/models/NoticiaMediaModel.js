@@ -13,8 +13,20 @@ import DriveAuthModel from './DriveAuthModel.js';
 const CARPETA_CONTENIDO = 'ContenidoJAL';
 const MIME_FOLDER = 'application/vnd.google-apps.folder';
 const TIPOS_PERMITIDOS = ['image/', 'video/'];
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 const NoticiaMediaModel = {
+  /**
+   * Valida el archivo antes de crear o actualizar la noticia.
+   *
+   * @param {File} archivo
+   * @returns {void}
+   */
+  validarArchivo(archivo) {
+    this._validarArchivo(archivo);
+  },
+
   /**
    * Sube o reemplaza el archivo multimedia de una noticia.
    *
@@ -23,7 +35,7 @@ const NoticiaMediaModel = {
    * @returns {Promise<Object>}
    */
   async subirContenidoNoticia(archivo, noticia) {
-    this._validarArchivo(archivo);
+    this.validarArchivo(archivo);
     return DriveAuthModel.ejecutarEnCola('subir contenido de noticia a Drive', () =>
       this._subirContenidoNoticiaInterno(archivo, noticia)
     );
@@ -165,9 +177,26 @@ const NoticiaMediaModel = {
       throw new Error('Selecciona una imagen o video para la noticia.');
     }
 
-    if (!TIPOS_PERMITIDOS.some((tipo) => archivo.type.startsWith(tipo))) {
+    const tipoArchivo = String(archivo.type || '').toLowerCase();
+    const esVideo = tipoArchivo.startsWith('video/');
+
+    if (!TIPOS_PERMITIDOS.some((tipo) => tipoArchivo.startsWith(tipo))) {
       throw new Error('El archivo de la noticia debe ser una imagen o un video.');
     }
+
+    if (!archivo.size || archivo.size <= 0) {
+      throw new Error('El archivo de la noticia esta vacio o no se puede leer.');
+    }
+
+    const maxBytes = esVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (archivo.size > maxBytes) {
+      throw new Error(`El archivo supera el tamano permitido (${this._formatearBytes(maxBytes)}).`);
+    }
+  },
+
+  _formatearBytes(bytes) {
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(0)} MB`;
   },
 
   _buildNombreCarpetaNoticia(noticia) {

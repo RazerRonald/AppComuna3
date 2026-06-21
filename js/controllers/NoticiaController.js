@@ -11,6 +11,9 @@ import NoticiaMediaModel from '../models/NoticiaMediaModel.js';
 import AuthModel    from '../models/AuthModel.js';
 import { i18n }     from '../config/i18n.js';
 
+const MAX_TITULO_NOTICIA = 200;
+const MAX_CUERPO_NOTICIA = 12000;
+
 const NoticiaController = {
   /**
    * Obtiene todas las noticias para mostrar en la vista pública o admin.
@@ -76,13 +79,27 @@ const NoticiaController = {
    * @returns {Promise<void>}
    */
   async crear(datos, { onLoading, onSuccess, onError }) {
-    if (!this._validarCampos(datos)) {
+    const datosLimpios = this._normalizarDatos(datos);
+
+    if (!this._validarCampos(datosLimpios)) {
       onError(i18n.noticias.camposRequeridos);
       return;
     }
 
-    if (!datos.mediaFile) {
+    if (!this._validarLongitudes(datosLimpios)) {
+      onError(i18n.noticias.textoMuyLargo);
+      return;
+    }
+
+    if (!datosLimpios.mediaFile) {
       onError(i18n.noticias.archivoRequerido);
+      return;
+    }
+
+    try {
+      NoticiaMediaModel.validarArchivo(datosLimpios.mediaFile);
+    } catch (err) {
+      onError(err?.message || i18n.noticias.errorGuardar);
       return;
     }
 
@@ -97,14 +114,14 @@ const NoticiaController = {
     let mediaDriveId = null;
     try {
       noticiaId = await NoticiaModel.create({
-        titulo:     datos.titulo.trim(),
-        cuerpo:     datos.cuerpo.trim(),
+        titulo:     datosLimpios.titulo,
+        cuerpo:     datosLimpios.cuerpo,
         autorId:    sesion.uid,
       });
 
-      const media = await NoticiaMediaModel.subirContenidoNoticia(datos.mediaFile, {
+      const media = await NoticiaMediaModel.subirContenidoNoticia(datosLimpios.mediaFile, {
         id: noticiaId,
-        titulo: datos.titulo.trim(),
+        titulo: datosLimpios.titulo,
       });
       mediaDriveId = media.media_drive_id;
 
@@ -133,24 +150,40 @@ const NoticiaController = {
    * @returns {Promise<void>}
    */
   async actualizar(id, datos, { onLoading, onSuccess, onError }) {
-    if (!this._validarCampos(datos)) {
+    const datosLimpios = this._normalizarDatos(datos);
+
+    if (!this._validarCampos(datosLimpios)) {
       onError(i18n.noticias.camposRequeridos);
       return;
+    }
+
+    if (!this._validarLongitudes(datosLimpios)) {
+      onError(i18n.noticias.textoMuyLargo);
+      return;
+    }
+
+    if (datosLimpios.mediaFile) {
+      try {
+        NoticiaMediaModel.validarArchivo(datosLimpios.mediaFile);
+      } catch (err) {
+        onError(err?.message || i18n.noticias.errorGuardar);
+        return;
+      }
     }
 
     onLoading(true);
     try {
       const noticiaActual = await NoticiaModel.getById(id);
       await NoticiaModel.update(id, {
-        titulo:     datos.titulo.trim(),
-        cuerpo:     datos.cuerpo.trim(),
+        titulo:     datosLimpios.titulo,
+        cuerpo:     datosLimpios.cuerpo,
       });
 
-      if (datos.mediaFile) {
-        const media = await NoticiaMediaModel.subirContenidoNoticia(datos.mediaFile, {
+      if (datosLimpios.mediaFile) {
+        const media = await NoticiaMediaModel.subirContenidoNoticia(datosLimpios.mediaFile, {
           ...noticiaActual,
           id,
-          titulo: datos.titulo.trim(),
+          titulo: datosLimpios.titulo,
         });
         await NoticiaModel.updateMedia(id, media);
       }
@@ -215,6 +248,34 @@ const NoticiaController = {
    */
   _validarCampos(datos) {
     return Boolean(datos?.titulo?.trim() && datos?.cuerpo?.trim());
+  },
+
+  /**
+   * Normaliza los valores de formulario antes de validarlos/guardarlos.
+   *
+   * @private
+   * @param {Object} datos
+   * @returns {Object}
+   */
+  _normalizarDatos(datos) {
+    return {
+      ...datos,
+      titulo: String(datos?.titulo || '').trim(),
+      cuerpo: String(datos?.cuerpo || '').trim(),
+      mediaFile: datos?.mediaFile || null,
+    };
+  },
+
+  /**
+   * Evita guardar textos accidentalmente enormes.
+   *
+   * @private
+   * @param {Object} datos
+   * @returns {boolean}
+   */
+  _validarLongitudes(datos) {
+    return datos.titulo.length <= MAX_TITULO_NOTICIA
+      && datos.cuerpo.length <= MAX_CUERPO_NOTICIA;
   },
 
   /**

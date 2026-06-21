@@ -279,7 +279,10 @@ const AdminView = {
           this._renderTablaNoticiasBody(filtradas, Boolean(this._normalizarBusqueda(termino)));
         });
       },
-      onError:   (msg) => Toast.error(msg),
+      onError:   (msg) => {
+        this._renderTablaError('tabla-noticias-body', 3, msg);
+        Toast.error(msg);
+      },
     });
   },
 
@@ -412,6 +415,7 @@ const AdminView = {
                       class="form-control"
                       rows="8"
                       placeholder="${i18n.noticias.placeholderCuerpo}"
+                      maxlength="12000"
                       required>${cuerpo}</textarea>
           </div>
           <div id="form-noticia-error" class="alert alert-danger d-none mb-3" role="alert"></div>
@@ -559,7 +563,10 @@ const AdminView = {
           this._renderTablaEventosBody(filtrados, Boolean(this._normalizarBusqueda(termino)));
         });
       },
-      onError:   (msg) => Toast.error(msg),
+      onError:   (msg) => {
+        this._renderTablaError('tabla-eventos-body', 4, msg);
+        Toast.error(msg);
+      },
     });
   },
 
@@ -665,13 +672,13 @@ const AdminView = {
               <label for="evento-titulo" class="form-label">${i18n.eventos.campoTitulo} *</label>
               <input type="text" id="evento-titulo" class="form-control"
                      placeholder="${i18n.eventos.placeholderTitulo}"
-                     value="${titulo}" required />
+                     value="${titulo}" maxlength="160" required />
             </div>
             <div class="col-md-6">
               <label for="evento-lugar" class="form-label">${i18n.eventos.campoLugar} *</label>
               <input type="text" id="evento-lugar" class="form-control"
                      placeholder="${i18n.eventos.placeholderLugar}"
-                     value="${lugar}" required />
+                     value="${lugar}" maxlength="240" required />
             </div>
             <div class="col-md-6">
               <label for="evento-fecha" class="form-label">${i18n.eventos.campoFechaInicio} *</label>
@@ -687,6 +694,7 @@ const AdminView = {
               <label for="evento-descripcion" class="form-label">${i18n.eventos.campoDescripcion} *</label>
               <textarea id="evento-descripcion" class="form-control" rows="3"
                         placeholder="${i18n.eventos.placeholderDescripcion}"
+                        maxlength="4000"
                         required>${descripcion}</textarea>
             </div>
           </div>
@@ -706,6 +714,12 @@ const AdminView = {
 
     document.getElementById('btn-cancelar-evento')?.addEventListener('click', () => {
       container.classList.add('d-none');
+    });
+
+    const inicioInput = document.getElementById('evento-fecha');
+    const finInput = document.getElementById('evento-fecha-fin');
+    inicioInput?.addEventListener('input', () => {
+      if (finInput) finInput.min = inicioInput.value || '';
     });
 
     document.getElementById('form-evento')?.addEventListener('submit', async (e) => {
@@ -1198,6 +1212,24 @@ const AdminView = {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Muestra una fila de error dentro de una tabla administrativa.
+   * @private
+   */
+  _renderTablaError(tbodyId, colspan, mensaje) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="${colspan}" class="text-center py-5 text-muted">
+          <i class="bi bi-exclamation-triangle opacity-50 d-block mb-2" style="font-size:2rem;"></i>
+          ${this._esc(mensaje)}
+        </td>
+      </tr>
+    `;
   },
 
   /**

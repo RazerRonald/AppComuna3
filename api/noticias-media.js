@@ -5,6 +5,8 @@ const COLLECTION_NOTICIAS = 'noticias';
 const DRIVE_THUMB_SIZE = 1600;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 12000;
+const RETRY_BASE_DELAY_MS = 300;
+const MAX_FETCH_RETRIES = 2;
 
 const CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800',
@@ -34,6 +36,10 @@ function isValidNoticiaId(id) {
   return /^[A-Za-z0-9_-]{1,128}$/.test(String(id || ''));
 }
 
+function isValidCacheVersion(version) {
+  return !version || /^[A-Za-z0-9_.:-]{1,256}$/.test(String(version));
+}
+
 function buildFirestoreUrl(noticiaId) {
   const { projectId, apiKey } = getConfig();
   const path = [
@@ -57,18 +63,48 @@ function buildDriveThumbnailUrl(fileId) {
   return `https://drive.google.com/thumbnail?${params.toString()}`;
 }
 
-async function fetchWithTimeout(url) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status) {
+  return status === 408 || status === 429 || (status >= 500 && status <= 599);
+}
+
+async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
 }
 
+async function fetchWithRetry(url, options = {}) {
+  const retries = options.retries ?? MAX_FETCH_RETRIES;
+  let lastError = null;
+
+  for (let intento = 0; intento <= retries; intento += 1) {
+    try {
+      const response = await fetchWithTimeout(url, options.fetchOptions || {});
+      if (!isRetryableStatus(response.status) || intento === retries) {
+        return response;
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      lastError = err;
+      if (intento === retries) break;
+    }
+
+    await sleep(RETRY_BASE_DELAY_MS * (2 ** intento));
+  }
+
+  throw lastError || new Error('No se pudo completar la solicitud');
+}
+
 async function getNoticia(noticiaId) {
-  const response = await fetchWithTimeout(buildFirestoreUrl(noticiaId));
+  const response = await fetchWithRetry(buildFirestoreUrl(noticiaId));
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`Firestore respondio ${response.status}`);
@@ -77,7 +113,7 @@ async function getNoticia(noticiaId) {
 }
 
 async function getDriveImage(fileId) {
-  const response = await fetchWithTimeout(buildDriveThumbnailUrl(fileId));
+  const response = await fetchWithRetry(buildDriveThumbnailUrl(fileId));
   if (!response.ok) {
     throw new Error(`Drive respondio ${response.status}`);
   }
@@ -117,6 +153,12 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const cacheVersion = String(req.query?.v || '').trim();
+  if (!isValidCacheVersion(cacheVersion)) {
+    sendError(res, 400, 'Version de cache invalida');
+    return;
+  }
+
   try {
     const noticia = await getNoticia(noticiaId);
     const fields = noticia?.fields;
@@ -139,11 +181,34 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    if (cacheVersion && cacheVersion !== mediaDriveId) {
+      const params = new URLSearchParams({ id: noticiaId, v: mediaDriveId });
+      res.statusCode = 302;
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Location', `/api/noticias-media?${params.toString()}`);
+      res.end();
+      return;
+    }
+
+    const etag = `"noticia-media-${mediaDriveId}"`;
+    if (req.headers['if-none-match'] === etag) {
+      Object.entries(CACHE_HEADERS).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
+      res.setHeader('ETag', etag);
+      res.statusCode = 304;
+      res.end();
+      return;
+    }
+
     const { buffer, contentType } = await getDriveImage(mediaDriveId);
 
     Object.entries(CACHE_HEADERS).forEach(([key, value]) => {
       res.setHeader(key, value);
     });
+    res.setHeader('ETag', etag);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Robots-Tag', 'noindex');
     res.setHeader('Content-Type', contentType || mediaMime || 'image/jpeg');
     res.setHeader('Content-Length', buffer.byteLength);
     res.end(buffer);
