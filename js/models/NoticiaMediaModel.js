@@ -24,6 +24,12 @@ const NoticiaMediaModel = {
    */
   async subirContenidoNoticia(archivo, noticia) {
     this._validarArchivo(archivo);
+    return DriveAuthModel.ejecutarEnCola('subir contenido de noticia a Drive', () =>
+      this._subirContenidoNoticiaInterno(archivo, noticia)
+    );
+  },
+
+  async _subirContenidoNoticiaInterno(archivo, noticia) {
     await this._solicitarToken();
 
     const carpetaRaizId = await this._obtenerCarpetaContenido();
@@ -40,26 +46,23 @@ const NoticiaMediaModel = {
     })], { type: 'application/json' }));
     form.append('file', archivo);
 
-    const respuesta = await fetch(
+    const respuesta = await DriveAuthModel.fetchDrive(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,thumbnailLink',
       {
         method: 'POST',
-        headers: { Authorization: `Bearer ${DriveAuthModel.getAccessToken()}` },
         body: form,
       },
+      { nombre: 'subir contenido de noticia a Drive', reintentos: 0 },
     );
-
-    if (!respuesta.ok) {
-      const err = await respuesta.json();
-      throw new Error(err?.error?.message || 'Error subiendo contenido a Drive');
-    }
 
     const file = await respuesta.json();
 
-    await window.gapi.client.drive.permissions.create({
-      fileId: file.id,
-      resource: { role: 'reader', type: 'anyone' },
-    });
+    await DriveAuthModel.gapiDrive('publicar contenido de noticia en Drive', () =>
+      window.gapi.client.drive.permissions.create({
+        fileId: file.id,
+        resource: { role: 'reader', type: 'anyone' },
+      })
+    );
 
     const esVideo = archivo.type.startsWith('video/');
 
@@ -87,8 +90,10 @@ const NoticiaMediaModel = {
    */
   async eliminarArchivo(fileId) {
     if (!fileId) return;
-    await this._solicitarToken();
-    await this._eliminarArchivoSiExiste(fileId);
+    return DriveAuthModel.ejecutarEnCola('eliminar contenido de noticia en Drive', async () => {
+      await this._solicitarToken();
+      await this._eliminarArchivoSiExiste(fileId);
+    });
   },
 
   async _obtenerCarpetaContenido() {
@@ -121,31 +126,39 @@ const NoticiaMediaModel = {
 
     const queryDrive = filtros.join(' and ');
 
-    const existentes = await window.gapi.client.drive.files.list({
-      q: queryDrive,
-      spaces: 'drive',
-      pageSize: 1,
-      fields: 'files(id,name)',
-    });
+    const existentes = await DriveAuthModel.gapiDrive('buscar carpeta de contenido JAL', () =>
+      window.gapi.client.drive.files.list({
+        q: queryDrive,
+        spaces: 'drive',
+        pageSize: 1,
+        fields: 'files(id,name)',
+      })
+    );
 
     const carpetaExistente = existentes.result?.files?.[0];
     if (carpetaExistente?.id) return carpetaExistente.id;
 
-    const creada = await window.gapi.client.drive.files.create({
-      resource: {
-        name: nombreCarpeta,
-        mimeType: MIME_FOLDER,
-        ...(parentSeguro ? { parents: [parentSeguro] } : {}),
-      },
-      fields: 'id,name',
-    });
+    const creada = await DriveAuthModel.gapiDrive(
+      'crear carpeta de contenido JAL',
+      () => window.gapi.client.drive.files.create({
+        resource: {
+          name: nombreCarpeta,
+          mimeType: MIME_FOLDER,
+          ...(parentSeguro ? { parents: [parentSeguro] } : {}),
+        },
+        fields: 'id,name',
+      }),
+      { reintentos: 0 },
+    );
 
     return creada.result.id;
   },
 
   async _eliminarArchivoSiExiste(fileId) {
     try {
-      await window.gapi.client.drive.files.delete({ fileId });
+      await DriveAuthModel.gapiDrive('eliminar archivo anterior de Drive', () =>
+        window.gapi.client.drive.files.delete({ fileId })
+      );
     } catch (err) {
       console.warn('[NoticiaMediaModel._eliminarArchivoSiExiste] No se pudo eliminar archivo anterior', err);
     }

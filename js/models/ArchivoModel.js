@@ -110,6 +110,12 @@ const ArchivoModel = {
    * @returns {Promise<{ fileId: string, viewUrl: string, folderId: string }>}
    */
   async subirDrive(archivo, nombreCustom, opciones = {}) {
+    return DriveAuthModel.ejecutarEnCola('subir carta a Drive', () =>
+      this._subirDriveInterno(archivo, nombreCustom, opciones)
+    );
+  },
+
+  async _subirDriveInterno(archivo, nombreCustom, opciones = {}) {
     await this.solicitarToken();
 
     const opcionesObj = typeof opciones === 'object' && opciones !== null
@@ -137,19 +143,14 @@ const ArchivoModel = {
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     form.append('file', fileBlob);
 
-    const respuesta = await fetch(
+    const respuesta = await DriveAuthModel.fetchDrive(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
       {
         method:  'POST',
-        headers: { Authorization: `Bearer ${DriveAuthModel.getAccessToken()}` },
         body:    form,
       },
+      { nombre: 'subir carta a Drive', reintentos: 0 },
     );
-
-    if (!respuesta.ok) {
-      const err = await respuesta.json();
-      throw new Error(err?.error?.message || 'Error subiendo a Drive');
-    }
 
     const { id: fileId, webViewLink } = await respuesta.json();
 
@@ -181,24 +182,30 @@ const ArchivoModel = {
       'trashed = false',
     ].join(' and ');
 
-    const existentes = await window.gapi.client.drive.files.list({
-      q:        queryDrive,
-      spaces:   'drive',
-      pageSize: 1,
-      fields:   'files(id,name)',
-    });
+    const existentes = await DriveAuthModel.gapiDrive('buscar carpeta de estudiante', () =>
+      window.gapi.client.drive.files.list({
+        q:        queryDrive,
+        spaces:   'drive',
+        pageSize: 1,
+        fields:   'files(id,name)',
+      })
+    );
 
     const carpetaExistente = existentes.result?.files?.[0];
     if (carpetaExistente?.id) return carpetaExistente.id;
 
-    const creada = await window.gapi.client.drive.files.create({
-      resource: {
-        name:     nombreCarpeta,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents:  [DRIVE_CONFIG.FOLDER_ID],
-      },
-      fields: 'id,name',
-    });
+    const creada = await DriveAuthModel.gapiDrive(
+      'crear carpeta de estudiante',
+      () => window.gapi.client.drive.files.create({
+        resource: {
+          name:     nombreCarpeta,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents:  [DRIVE_CONFIG.FOLDER_ID],
+        },
+        fields: 'id,name',
+      }),
+      { reintentos: 0 },
+    );
 
     return creada.result.id;
   },
@@ -229,27 +236,31 @@ const ArchivoModel = {
     if (!fileId) return;
 
     try {
-      const respuesta = await window.gapi.client.drive.permissions.list({
-        fileId,
-        fields: 'permissions(id,type,role,emailAddress,deleted,permissionDetails)',
-        supportsAllDrives: true,
-      });
+      const respuesta = await DriveAuthModel.gapiDrive('listar permisos publicos de Drive', () =>
+        window.gapi.client.drive.permissions.list({
+          fileId,
+          fields: 'permissions(id,type,role,emailAddress,deleted,permissionDetails)',
+          supportsAllDrives: true,
+        })
+      );
 
       const permisosPublicos = (respuesta.result?.permissions || []).filter((permiso) =>
         !permiso.deleted && ['anyone', 'domain'].includes(permiso.type)
       );
 
-      await Promise.all(permisosPublicos.map(async (permiso) => {
+      for (const permiso of permisosPublicos) {
         try {
-          await window.gapi.client.drive.permissions.delete({
-            fileId,
-            permissionId: permiso.id,
-            supportsAllDrives: true,
-          });
+          await DriveAuthModel.gapiDrive('quitar permiso publico de Drive', () =>
+            window.gapi.client.drive.permissions.delete({
+              fileId,
+              permissionId: permiso.id,
+              supportsAllDrives: true,
+            })
+          );
         } catch (err) {
           console.warn('[ArchivoModel._quitarPermisosPublicos] No se pudo quitar un permiso publico de Drive', err);
         }
-      }));
+      }
     } catch (err) {
       console.warn('[ArchivoModel._quitarPermisosPublicos] No se pudieron revisar permisos de Drive', err);
     }
@@ -260,11 +271,13 @@ const ArchivoModel = {
     if (!fileId || !correo) return;
 
     try {
-      const existentes = await window.gapi.client.drive.permissions.list({
-        fileId,
-        fields: 'permissions(id,type,role,emailAddress,deleted)',
-        supportsAllDrives: true,
-      });
+      const existentes = await DriveAuthModel.gapiDrive('listar permisos privados de Drive', () =>
+        window.gapi.client.drive.permissions.list({
+          fileId,
+          fields: 'permissions(id,type,role,emailAddress,deleted)',
+          supportsAllDrives: true,
+        })
+      );
 
       const yaCompartido = (existentes.result?.permissions || []).some((permiso) =>
         !permiso.deleted &&
@@ -290,7 +303,9 @@ const ArchivoModel = {
         params.emailMessage = opciones.emailMessage;
       }
 
-      await window.gapi.client.drive.permissions.create(params);
+      await DriveAuthModel.gapiDrive('compartir recurso de Drive por correo', () =>
+        window.gapi.client.drive.permissions.create(params)
+      );
     } catch (err) {
       console.warn('[ArchivoModel._compartirDriveConCorreo] No se pudo compartir el recurso de Drive por correo', err);
     }

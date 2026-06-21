@@ -14,11 +14,15 @@ let _gapiIniciado = false;
 let _gapiInitPromise = null;
 let _tokenExpiraEn = 0;
 let _tokenErrorHandler = null;
+let _driveQueue = Promise.resolve();
 
 const TOKEN_MARGIN_MS = 60 * 1000;
 const TOKEN_WARNING_MS = 5 * 60 * 1000;
 const DEFAULT_TOKEN_MS = 50 * 60 * 1000;
 const EVENTO_ESTADO = 'jal:drive-auth-change';
+const DRIVE_MAX_REINTENTOS = 2;
+const DRIVE_RETRY_BASE_MS = 700;
+const DRIVE_RETRY_MAX_MS = 4000;
 
 const DriveAuthModel = {
   async inicializarDrive() {
@@ -89,6 +93,67 @@ const DriveAuthModel = {
       }
       throw err;
     }
+  },
+
+  /**
+   * Ejecuta operaciones completas de Drive de forma serial para reducir picos
+   * de llamadas simultaneas a Google Drive.
+   *
+   * @param {string} nombre
+   * @param {function(): Promise<*>} operacion
+   * @returns {Promise<*>}
+   */
+  async ejecutarEnCola(nombre, operacion) {
+    const tarea = _driveQueue
+      .catch(() => {})
+      .then(() => operacion());
+
+    _driveQueue = tarea.catch(() => {});
+    return tarea;
+  },
+
+  /**
+   * Ejecuta una peticion fetch autenticada contra Drive con reintentos,
+   * refresco de token ante 401 y backoff ante errores temporales.
+   *
+   * @param {string} url
+   * @param {RequestInit} opciones
+   * @param {Object} config
+   * @returns {Promise<Response>}
+   */
+  async fetchDrive(url, opciones = {}, config = {}) {
+    return this._ejecutarConReintentos(config.nombre || 'fetch Drive', async () => {
+      await this.solicitarToken();
+      const headers = this._mergeHeaders(opciones.headers, {
+        Authorization: `Bearer ${this.getAccessToken()}`,
+      });
+
+      const respuesta = await fetch(url, {
+        ...opciones,
+        headers,
+      });
+
+      if (!respuesta.ok) {
+        throw await this._crearErrorHttpDrive(respuesta);
+      }
+
+      return respuesta;
+    }, config);
+  },
+
+  /**
+   * Ejecuta una llamada gapi.client.drive con reintentos y refresh de token.
+   *
+   * @param {string} nombre
+   * @param {function(): Promise<*>} requestFactory
+   * @param {Object} config
+   * @returns {Promise<*>}
+   */
+  async gapiDrive(nombre, requestFactory, config = {}) {
+    return this._ejecutarConReintentos(nombre, async () => {
+      await this.solicitarToken();
+      return requestFactory();
+    }, config);
   },
 
   /**
@@ -243,6 +308,148 @@ const DriveAuthModel = {
   _guardarExpiracion(resp) {
     const expiresIn = Number(resp?.expires_in || 0);
     _tokenExpiraEn = Date.now() + (expiresIn > 0 ? expiresIn * 1000 : DEFAULT_TOKEN_MS);
+    this._notificarCambio();
+  },
+
+  async _ejecutarConReintentos(nombre, operacion, config = {}) {
+    const maxReintentos = Number.isInteger(config.reintentos)
+      ? Math.max(0, config.reintentos)
+      : DRIVE_MAX_REINTENTOS;
+    let intento = 0;
+    let tokenRefrescado = false;
+
+    while (intento <= maxReintentos) {
+      try {
+        return await operacion({ intento });
+      } catch (err) {
+        const error = this._normalizarErrorDrive(err, nombre);
+
+        if (this._esErrorAuthDrive(error) && !tokenRefrescado) {
+          tokenRefrescado = true;
+          this._limpiarToken();
+          await this.solicitarToken({ forceRefresh: true });
+          continue;
+        }
+
+        if (!this._esErrorReintentableDrive(error) || intento >= maxReintentos) {
+          throw error;
+        }
+
+        await this._esperarReintento(error, intento);
+        intento += 1;
+      }
+    }
+
+    throw new Error(`No se pudo completar la operacion de Drive: ${nombre}`);
+  },
+
+  _normalizarErrorDrive(err, nombre) {
+    const gapiError = err?.result?.error || this._parseGapiBody(err?.body)?.error || null;
+    const mensaje = err?.message
+      || gapiError?.message
+      || `No se pudo completar la operacion de Drive: ${nombre}`;
+    const error = err instanceof Error ? err : new Error(mensaje);
+
+    error.message = mensaje;
+    error.driveOperacion = nombre;
+    error.status = Number(error.status || err?.status || err?.code || gapiError?.code || 0) || undefined;
+    error.reason = error.reason
+      || gapiError?.errors?.[0]?.reason
+      || gapiError?.status
+      || err?.result?.error?.status
+      || '';
+
+    return error;
+  },
+
+  async _crearErrorHttpDrive(respuesta) {
+    const texto = await respuesta.text();
+    const payload = this._parseGapiBody(texto);
+    const apiError = payload?.error || null;
+    const mensaje = apiError?.message || texto || `Error HTTP ${respuesta.status} en Google Drive`;
+    const error = new Error(mensaje);
+
+    error.status = respuesta.status;
+    error.reason = apiError?.errors?.[0]?.reason || apiError?.status || '';
+    error.retryAfterMs = this._retryAfterMs(respuesta.headers.get('Retry-After'));
+    error.drivePayload = payload;
+
+    return error;
+  },
+
+  _parseGapiBody(body) {
+    if (!body || typeof body !== 'string') return null;
+    try {
+      return JSON.parse(body);
+    } catch (_) {
+      return null;
+    }
+  },
+
+  _esErrorAuthDrive(error) {
+    const status = Number(error?.status || 0);
+    const reason = String(error?.reason || error?.oauthError || '').toLowerCase();
+
+    return status === 401
+      || reason.includes('autherror')
+      || reason.includes('invalid_credentials')
+      || reason.includes('invalidcredentials')
+      || reason.includes('login_required');
+  },
+
+  _esErrorReintentableDrive(error) {
+    const status = Number(error?.status || 0);
+    const reason = String(error?.reason || '').toLowerCase();
+
+    return [408, 429, 500, 502, 503, 504].includes(status)
+      || ['ratelimitexceeded', 'userratelimitexceeded', 'backenderror', 'internalerror'].includes(reason)
+      || (!status && error instanceof TypeError);
+  },
+
+  async _esperarReintento(error, intento) {
+    const retryAfter = Number(error?.retryAfterMs || 0);
+    const exponencial = Math.min(DRIVE_RETRY_MAX_MS, DRIVE_RETRY_BASE_MS * (2 ** intento));
+    const jitter = Math.floor(Math.random() * 250);
+    const delay = retryAfter > 0 ? retryAfter : exponencial + jitter;
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  },
+
+  _retryAfterMs(valor) {
+    if (!valor) return 0;
+    const segundos = Number(valor);
+    if (Number.isFinite(segundos)) return Math.max(0, segundos * 1000);
+
+    const fecha = Date.parse(valor);
+    return Number.isFinite(fecha) ? Math.max(0, fecha - Date.now()) : 0;
+  },
+
+  _mergeHeaders(headers, extra) {
+    const resultado = {};
+
+    if (headers instanceof Headers) {
+      headers.forEach((value, key) => {
+        resultado[key] = value;
+      });
+    } else if (Array.isArray(headers)) {
+      headers.forEach(([key, value]) => {
+        resultado[key] = value;
+      });
+    } else if (headers && typeof headers === 'object') {
+      Object.assign(resultado, headers);
+    }
+
+    return {
+      ...resultado,
+      ...extra,
+    };
+  },
+
+  _limpiarToken() {
+    _tokenExpiraEn = 0;
+    if (window.gapi?.client?.setToken) {
+      window.gapi.client.setToken(null);
+    }
     this._notificarCambio();
   },
 
