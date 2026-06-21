@@ -145,7 +145,7 @@ const DriveConnectionBubble = {
       this._actualizar();
     } catch (err) {
       console.error('[DriveConnectionBubble._conectarDrive]', err);
-      Toast.error(i18n.drive.errorConexion);
+      Toast.error(err?.message || i18n.drive.errorConexion);
       this._actualizar();
     } finally {
       this._setCargando(false);

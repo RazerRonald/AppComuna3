@@ -13,6 +13,7 @@ let _gapiTokenClient = null;
 let _gapiIniciado = false;
 let _gapiInitPromise = null;
 let _tokenExpiraEn = 0;
+let _tokenErrorHandler = null;
 
 const TOKEN_MARGIN_MS = 60 * 1000;
 const TOKEN_WARNING_MS = 5 * 60 * 1000;
@@ -42,6 +43,11 @@ const DriveAuthModel = {
               client_id: DRIVE_CONFIG.CLIENT_ID,
               scope: DRIVE_CONFIG.SCOPES,
               callback: () => {},
+              error_callback: (err) => {
+                if (typeof _tokenErrorHandler === 'function') {
+                  _tokenErrorHandler(err);
+                }
+              },
             });
 
             _gapiIniciado = true;
@@ -93,7 +99,18 @@ const DriveAuthModel = {
    */
   _pedirAccessToken(prompt) {
     return new Promise((resolve, reject) => {
+      const limpiarErrorHandler = () => {
+        _tokenErrorHandler = null;
+      };
+
+      _tokenErrorHandler = (err) => {
+        limpiarErrorHandler();
+        reject(this._normalizarErrorGis(err));
+      };
+
       _gapiTokenClient.callback = (resp) => {
+        limpiarErrorHandler();
+
         if (resp.error) {
           const error = new Error(`Error OAuth: ${resp.error}`);
           error.oauthError = resp.error;
@@ -109,8 +126,31 @@ const DriveAuthModel = {
         resolve(resp);
       };
 
-      _gapiTokenClient.requestAccessToken({ prompt });
+      try {
+        _gapiTokenClient.requestAccessToken({ prompt });
+      } catch (err) {
+        limpiarErrorHandler();
+        reject(err);
+      }
     });
+  },
+
+  /**
+   * Convierte errores no-OAuth de Google Identity en mensajes accionables.
+   * @private
+   */
+  _normalizarErrorGis(err) {
+    const tipo = String(err?.type || err?.error || 'unknown');
+    const mensajes = {
+      popup_failed_to_open: 'El navegador bloqueo la ventana de Google. Permite ventanas emergentes para este sitio e intenta de nuevo.',
+      popup_closed: 'La ventana de Google se cerro antes de completar la conexion.',
+      unknown: 'No se pudo abrir la autorizacion de Google Drive.',
+    };
+
+    const error = new Error(mensajes[tipo] || mensajes.unknown);
+    error.oauthError = tipo;
+    error.gisError = err;
+    return error;
   },
 
   /**
