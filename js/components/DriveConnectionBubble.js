@@ -25,12 +25,15 @@ const DriveConnectionBubble = {
   _unsubDrive: null,
   _bindingListo: false,
   _cargando: false,
+  _preparando: false,
+  _driveListo: false,
 
   render({ sesion } = {}) {
     this._sesion = sesion || null;
     this._asegurarDOM();
     this._bindEvents();
     this._suscribirDrive();
+    this._prepararDriveSiAplica();
     this._actualizar();
   },
 
@@ -52,6 +55,8 @@ const DriveConnectionBubble = {
     this._icon = null;
     this._spinner = null;
     this._bindingListo = false;
+    this._preparando = false;
+    this._driveListo = false;
   },
 
   _asegurarDOM() {
@@ -108,16 +113,25 @@ const DriveConnectionBubble = {
       return;
     }
 
+    if (!this._driveListo) {
+      this._label.textContent = i18n.drive.preparando;
+      this._btn.setAttribute('aria-label', i18n.drive.preparando);
+      this._btn.disabled = true;
+      this._btn.hidden = false;
+      return;
+    }
+
     const esPrimeraConexion = estado.estado === 'sin_token';
     this._label.textContent = esPrimeraConexion
       ? i18n.drive.conectar
       : i18n.drive.restablecer;
     this._btn.setAttribute('aria-label', this._label.textContent);
+    this._btn.disabled = this._cargando;
     this._btn.hidden = false;
   },
 
   async _conectarDrive() {
-    if (this._cargando) return;
+    if (this._cargando || !this._driveListo) return;
 
     const estado = DriveAuthModel.getEstadoConexion();
     this._setCargando(true);
@@ -134,6 +148,22 @@ const DriveConnectionBubble = {
       this._actualizar();
     } finally {
       this._setCargando(false);
+    }
+  },
+
+  async _prepararDriveSiAplica() {
+    if (this._preparando || this._driveListo || this._sesion?.rol !== ROLES.EDIL) return;
+
+    this._preparando = true;
+    try {
+      await DriveAuthModel.inicializarDrive();
+      this._driveListo = true;
+    } catch (err) {
+      console.warn('[DriveConnectionBubble._prepararDriveSiAplica]', err);
+      this._driveListo = false;
+    } finally {
+      this._preparando = false;
+      this._actualizar();
     }
   },
 

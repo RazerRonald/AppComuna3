@@ -70,6 +70,7 @@ export const i18n = {
   drive: {
     conectar:     'Conectar con Drive',
     restablecer:  'Restablecer conexión con Drive',
+    preparando:   'Preparando Drive...',
     conectando:   'Conectando con Drive...',
     conectado:    'Conexión con Drive activa.',
     errorConexion:'No se pudo conectar con Google Drive.',
