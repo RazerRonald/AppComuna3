@@ -103,10 +103,6 @@ const NoticiaMediaModel = {
     return this._obtenerOCrearCarpeta(CARPETA_CONTENIDO);
   },
 
-  async _inicializarDrive() {
-    await DriveAuthModel.inicializarDrive();
-  },
-
   async _solicitarToken() {
     await DriveAuthModel.solicitarToken();
   },

@@ -39,6 +39,11 @@ function escHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function actualizarFooterYear() {
+  const yearEl = document.getElementById('footer-year');
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+}
+
 // ─── TABLA DE RUTAS ───────────────────────────────────────────────────────
 // Estructura: { handler: fn, rolRequerido: string|null }
 // rolRequerido: null = público, 'estudiante'/'edil' = autenticado con ese rol
@@ -222,6 +227,8 @@ function mostrarApp() {
  * Suscribe el listener de autenticación de Firebase y configura el router.
  */
 function iniciarApp() {
+  actualizarFooterYear();
+
   // 1. Observar estado de autenticación (restaura sesión si ya existe)
   const unsubAuth = AuthController.iniciarListener(async (sesion) => {
     // Al cambiar el estado de auth → re-procesar la ruta actual

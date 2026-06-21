@@ -1,6 +1,6 @@
 /**
  * @fileoverview PublicoView — Vista pública de inicio, noticias y eventos.
- * Incluye: carrusel hero, últimas noticias, próximos eventos y detalle de noticia.
+ * Incluye: carrusel hero, últimas noticias, eventos recientes y detalle de noticia.
  * Solo renderiza HTML; delega lógica a los Controllers.
  *
  * @module views/PublicoView
@@ -34,16 +34,13 @@ const SLIDES_HERO = [
     imgUrl:      'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=1280',
     tag:         'Comunidad',
     titulo:      'Eventos y Actividades Comunitarias',
-    descripcion: 'Entérate de las próximas reuniones, talleres y actividades de la JAL.',
+    descripcion: 'Entérate de reuniones, talleres y actividades de la JAL.',
     ctaUrl:      '#/eventos',
     ctaTexto:    'Ver Eventos',
   },
 ];
 
 const PublicoView = {
-  /** @type {function|null} Función unsubscribe de onSnapshot activo */
-  _unsubscribe: null,
-
   /** @type {import('../models/EventoModel.js').Evento[]} Eventos renderizados (para generar el .ics) */
   _eventosCalCache: [],
 
@@ -1066,10 +1063,6 @@ const PublicoView = {
    */
   destruir() {
     Carousel.destruir();
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
   },
 };
 

@@ -28,7 +28,6 @@ import {
   deleteDoc,
   query,
   orderBy,
-  where,
   limit,
   serverTimestamp,
   Timestamp,
@@ -56,24 +55,6 @@ const EventoModel = {
   async getAll(limite = 50) {
     const q    = query(
       collection(db, COL_EVENTOS),
-      orderBy('fecha', 'asc'),
-      limit(limite),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  },
-
-  /**
-   * Obtiene solo los eventos futuros (a partir de hoy) ordenados por fecha.
-   *
-   * @param {number} [limite=20] - Número máximo de eventos próximos
-   * @returns {Promise<Evento[]>} Array de eventos próximos
-   */
-  async getProximos(limite = 20) {
-    const ahora = Timestamp.fromDate(new Date());
-    const q     = query(
-      collection(db, COL_EVENTOS),
-      where('fecha', '>=', ahora),
       orderBy('fecha', 'asc'),
       limit(limite),
     );
@@ -190,15 +171,6 @@ const EventoModel = {
     });
   },
 
-  /**
-   * Cuenta los eventos próximos (fecha >= hoy).
-   *
-   * @returns {Promise<number>} Número de eventos próximos
-   */
-  async contarProximos() {
-    const proximos = await this.getProximos(100);
-    return proximos.length;
-  },
 };
 
 export default EventoModel;

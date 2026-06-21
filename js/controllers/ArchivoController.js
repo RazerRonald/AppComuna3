@@ -15,32 +15,6 @@ const PLANTILLA_FINALIZACION_URL = 'assets/Plantilla.Finalizacion.docx';
 
 const ArchivoController = {
   /**
-   * Obtiene el último trámite del estudiante autenticado.
-   */
-  async obtenerMiTramite({ onLoading, onSuccess, onError }) {
-    const sesion = AuthModel.getSesion();
-    if (!sesion) {
-      onError(i18n.auth.accesoDenegado);
-      return;
-    }
-
-    onLoading(true);
-    try {
-      const tramite = await ArchivoModel.getUltimoTramite(sesion.uid);
-      onSuccess(tramite);
-    } catch (err) {
-      console.error('[ArchivoController.obtenerMiTramite]', err);
-      if (this._esErrorPermisosLectura(err)) {
-        onSuccess(null);
-        return;
-      }
-      onError(i18n.app.errorGenerico);
-    } finally {
-      onLoading(false);
-    }
-  },
-
-  /**
    * Obtiene todas las solicitudes del estudiante autenticado.
    */
   async obtenerMisTramites({ onLoading, onSuccess, onError }) {
@@ -102,13 +76,6 @@ const ArchivoController = {
     }
   },
 
-  /**
-   * Genera el DOCX desde la plantilla, lo sube a Drive y marca el trámite como Expedida.
-   *
-   * @param {string} tramiteId
-   * @param {Object} tramiteData - Datos del trámite para rellenar la plantilla
-   * @param {Object} callbacks
-   */
   /**
    * Solicita la carta de finalizacion asociada a una carta barrial expedida.
    *
@@ -198,9 +165,6 @@ const ArchivoController = {
   },
 
   /**
-   * Obtiene todos los trámites (panel admin).
-   */
-  /**
    * Genera la carta de finalizacion y la entrega como Blob al Edil.
    *
    * @param {Object} tramiteData
@@ -280,13 +244,6 @@ const ArchivoController = {
     } finally {
       onLoading(false);
     }
-  },
-
-  /**
-   * Suscribe listener a trámites pendientes.
-   */
-  suscribirPendientes(callback) {
-    return ArchivoModel.onSnapshotPendientes(callback);
   },
 
   /**

@@ -105,25 +105,6 @@ const AuthModel = {
   },
 
   /**
-   * Verifica si el usuario tiene el rol especificado.
-   *
-   * @param {string} rol - Rol a verificar (usar constantes de ROLES)
-   * @returns {boolean}
-   */
-  tieneRol(rol) {
-    return _sesionActual?.rol === rol;
-  },
-
-  /**
-   * Indica si hay una sesión activa.
-   *
-   * @returns {boolean}
-   */
-  estaAutenticado() {
-    return _sesionActual !== null;
-  },
-
-  /**
    * Suscribe un callback al estado de autenticación de Firebase.
    * Útil para restaurar la sesión al recargar la página.
    * Al recibir un usuario, consulta Firestore para obtener su rol y
@@ -167,21 +148,6 @@ const AuthModel = {
     });
   },
 
-  /**
-   * Obtiene el perfil completo del usuario desde Firestore.
-   *
-   * @param {string} uid - UID del usuario
-   * @returns {Promise<Object|null>} Datos del perfil o null
-   */
-  async getPerfil(uid) {
-    try {
-      const snap = await getDoc(doc(db, COL_USERS, uid));
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
-    } catch (err) {
-      console.error('[AuthModel.getPerfil]', err);
-      return null;
-    }
-  },
 };
 
 export default AuthModel;

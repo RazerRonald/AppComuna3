@@ -12,28 +12,6 @@ import { i18n }    from '../config/i18n.js';
 
 const EventoController = {
   /**
-   * Obtiene todos los eventos próximos (fecha >= hoy).
-   *
-   * @param {Object}   callbacks
-   * @param {function} callbacks.onLoading
-   * @param {function} callbacks.onSuccess - (Evento[])
-   * @param {function} callbacks.onError   - (string)
-   * @returns {Promise<void>}
-   */
-  async listarProximos({ onLoading, onSuccess, onError }) {
-    onLoading(true);
-    try {
-      const eventos = await EventoModel.getProximos();
-      onSuccess(eventos);
-    } catch (err) {
-      console.error('[EventoController.listarProximos]', err);
-      onError(i18n.app.errorGenerico);
-    } finally {
-      onLoading(false);
-    }
-  },
-
-  /**
    * Obtiene todos los eventos (pasados y futuros) ordenados de más reciente a
    * más antiguo. Usado en las vistas públicas para no ocultar eventos pasados.
    *

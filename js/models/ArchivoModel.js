@@ -394,17 +394,6 @@ const ArchivoModel = {
   },
 
   /**
-   * Obtiene el último trámite de un estudiante.
-   *
-   * @param {string} uidEstudiante
-   * @returns {Promise<Tramite|null>}
-   */
-  async getUltimoTramite(uidEstudiante) {
-    const docs = await this.getTramitesPorEstudiante(uidEstudiante);
-    return docs[0] || null;
-  },
-
-  /**
    * Obtiene todos los trámites (panel admin).
    *
    * @returns {Promise<Tramite[]>}
@@ -422,28 +411,6 @@ const ArchivoModel = {
     } catch (err) {
       console.warn('[ArchivoModel.getAllTramites] No se pudieron adjuntar documentos privados', err);
       return tramites;
-    }
-  },
-
-  /**
-   * Obtiene trámites con estado "Pendiente".
-   *
-   * @returns {Promise<Tramite[]>}
-   */
-  async getTramitesPendientes() {
-    const q    = query(
-      collection(db, COL_ARCHIVOS),
-      where('estado', '==', ESTADOS_TRAMITE.PENDIENTE),
-    );
-    const snap = await getDocs(q);
-    const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    docs.sort((a, b) => this._fechaMs(b.fecha_solicitud) - this._fechaMs(a.fecha_solicitud));
-    try {
-      await this._migrarDocumentosPrivadosSiHaceFalta(docs);
-      return await this._adjuntarDocumentosPrivados(docs);
-    } catch (err) {
-      console.warn('[ArchivoModel.getTramitesPendientes] No se pudieron adjuntar documentos privados', err);
-      return docs;
     }
   },
 
@@ -534,30 +501,6 @@ const ArchivoModel = {
     });
 
     await batch.commit();
-  },
-
-  /**
-   * Listener en tiempo real para trámites pendientes.
-   *
-   * @param {function(Tramite[]): void} callback
-   * @returns {function} unsubscribe
-   */
-  onSnapshotPendientes(callback) {
-    const q = query(
-      collection(db, COL_ARCHIVOS),
-      where('estado', '==', ESTADOS_TRAMITE.PENDIENTE),
-    );
-    return onSnapshot(q, async (snap) => {
-      const tramites = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      tramites.sort((a, b) => this._fechaMs(b.fecha_solicitud) - this._fechaMs(a.fecha_solicitud));
-      try {
-        await this._migrarDocumentosPrivadosSiHaceFalta(tramites);
-        callback(await this._adjuntarDocumentosPrivados(tramites));
-      } catch (err) {
-        console.warn('[ArchivoModel.onSnapshotPendientes] No se pudieron adjuntar documentos privados', err);
-        callback(tramites);
-      }
-    });
   },
 
   /**

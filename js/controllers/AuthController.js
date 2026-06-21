@@ -95,41 +95,6 @@ const AuthController = {
     }
   },
 
-  /**
-   * Verifica si la sesión actual tiene permiso para acceder a una ruta.
-   *
-   * @param {string} ruta - Hash de la ruta a verificar (ej: '#/admin')
-   * @returns {{ permitido: boolean, razon: string|null }}
-   */
-  verificarAcceso(ruta) {
-    const sesion = AuthModel.getSesion();
-
-    const rutasPublicas      = ['#/inicio', '#/noticias', '#/eventos', '#/contacto', '#/login'];
-    const rutasEstudiante    = ['#/tramite'];
-    const rutasEdil          = ['#/admin', '#/publicar', '#/admin/noticias', '#/admin/eventos', '#/admin/tramites'];
-
-    if (rutasPublicas.includes(ruta)) {
-      return { permitido: true, razon: null };
-    }
-
-    if (!sesion) {
-      return { permitido: false, razon: i18n.auth.accesoDenegado };
-    }
-
-    if (rutasEstudiante.includes(ruta)) {
-      const ok = sesion.rol === ROLES.ESTUDIANTE || sesion.rol === ROLES.EDIL;
-      return { permitido: ok, razon: ok ? null : i18n.auth.accesoDenegado };
-    }
-
-    if (rutasEdil.includes(ruta)) {
-      const ok = sesion.rol === ROLES.EDIL;
-      return { permitido: ok, razon: ok ? null : i18n.auth.accesoDenegado };
-    }
-
-    // Ruta desconocida — permitir por defecto (el router mostrará 404)
-    return { permitido: true, razon: null };
-  },
-
   // ─── Privado: mapear códigos de error de Firebase a mensajes amigables ─
   /**
    * Mapea códigos de error de Firebase Auth a mensajes en español.
