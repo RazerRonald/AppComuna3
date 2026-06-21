@@ -38,6 +38,32 @@ service cloud.firestore {
         && request.resource.data.fecha_solicitud_finalizacion == request.time;
     }
 
+    function camposSolicitudInicial() {
+      return [
+        'uid_estudiante',
+        'nombre_completo',
+        'tipo_documento',
+        'numero_documento',
+        'ciudad_documento',
+        'universidad',
+        'carrera',
+        'semestre_actual',
+        'horas_a_realizar',
+        'lugar_realizacion',
+        'estado',
+        'fecha_solicitud',
+        'fecha_resolucion',
+        'documento_expedido_id',
+        'documento_expedido_url',
+        'finalizacion_solicitada',
+        'finalizacion_estado',
+        'fecha_solicitud_finalizacion',
+        'fecha_expedicion_finalizacion',
+        'documento_finalizacion_id',
+        'documento_finalizacion_url'
+      ];
+    }
+
     match /noticias/{noticiaId} {
       allow read: if true;
       allow write: if esEdil();
@@ -53,8 +79,13 @@ service cloud.firestore {
         && (esEdil() || resource.data.uid_estudiante == request.auth.uid);
 
       allow create: if autenticado()
+        && request.resource.data.keys().hasOnly(camposSolicitudInicial())
+        && request.resource.data.keys().hasAll(camposSolicitudInicial())
         && request.resource.data.uid_estudiante == request.auth.uid
+        && request.resource.data.uid_estudiante is string
         && request.resource.data.estado == 'Pendiente'
+        && request.resource.data.fecha_solicitud == request.time
+        && request.resource.data.fecha_resolucion == null
         && request.resource.data.nombre_completo is string
         && request.resource.data.tipo_documento is string
         && request.resource.data.numero_documento is string
@@ -64,6 +95,7 @@ service cloud.firestore {
         && request.resource.data.semestre_actual is int
         && request.resource.data.semestre_actual > 0
         && request.resource.data.horas_a_realizar is number
+        && request.resource.data.horas_a_realizar > 0
         && request.resource.data.lugar_realizacion is string
         && request.resource.data.documento_expedido_id == null
         && request.resource.data.documento_expedido_url == null

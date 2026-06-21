@@ -30,6 +30,15 @@ import AdminView        from './views/AdminView.js';
 import { ROLES }        from './config/collections.js';
 import { i18n }         from './config/i18n.js';
 
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── TABLA DE RUTAS ───────────────────────────────────────────────────────
 // Estructura: { handler: fn, rolRequerido: string|null }
 // rolRequerido: null = público, 'estudiante'/'edil' = autenticado con ese rol
@@ -57,7 +66,7 @@ function render404() {
     <div class="access-denied animate-fade-in">
       <div class="denied-icon">🗺️</div>
       <h1 class="h2 fw-800 mb-2">Página no encontrada</h1>
-      <p class="text-muted mb-4">La ruta <code>${window.location.hash || '#/'}</code> no existe.</p>
+      <p class="text-muted mb-4">La ruta <code>${escHtml(window.location.hash || '#/')}</code> no existe.</p>
       <a href="#/inicio" class="btn-jal-primary">
         <i class="bi bi-house me-2"></i>Ir al Inicio
       </a>
@@ -134,10 +143,7 @@ async function procesarRuta() {
       return;
     }
 
-    // Edil puede acceder a rutas de estudiante también
-    const tienePermiso =
-      sesion.rol === rolRequerido ||
-      (rolRequerido === ROLES.ESTUDIANTE && sesion.rol === ROLES.EDIL);
+    const tienePermiso = sesion.rol === rolRequerido;
 
     if (!tienePermiso) {
       actualizarNavbar(hash);

@@ -101,39 +101,48 @@ const Carousel = {
    * @returns {string} HTML del carrusel
    */
   _buildHTML(slides, intervalo) {
-    const slidesHTML = slides.map((slide, i) => `
-      <div class="carousel-item${i === 0 ? ' active' : ''}"
-           data-index="${i}"
-           role="group"
-           aria-roledescription="slide"
-           aria-label="Diapositiva ${i + 1} de ${slides.length}">
+    const slidesHTML = slides.map((slide, i) => {
+      const imgUrl = this._esc(slide.imgUrl);
+      const titulo = this._esc(slide.titulo);
+      const tag = this._esc(slide.tag || 'JAL Manrique');
+      const descripcion = this._esc(slide.descripcion || '');
+      const ctaUrl = this._esc(slide.ctaUrl || '');
+      const ctaTexto = this._esc(slide.ctaTexto || 'Ver más');
 
-        <!-- Fondo -->
-        <img src="${slide.imgUrl}"
-             alt="${slide.titulo}"
-             class="carousel-bg"
-             loading="${i === 0 ? 'eager' : 'lazy'}"
-             onerror="this.style.display='none'" />
+      return `
+        <div class="carousel-item${i === 0 ? ' active' : ''}"
+             data-index="${i}"
+             role="group"
+             aria-roledescription="slide"
+             aria-label="Diapositiva ${i + 1} de ${slides.length}">
 
-        <!-- Overlay oscuro -->
-        <div class="carousel-overlay" aria-hidden="true"></div>
+          <!-- Fondo -->
+          <img src="${imgUrl}"
+               alt="${titulo}"
+               class="carousel-bg"
+               loading="${i === 0 ? 'eager' : 'lazy'}"
+               onerror="this.style.display='none'" />
 
-        <!-- Contenido -->
-        <div class="carousel-content">
-          <span class="carousel-tag">${slide.tag || 'JAL Manrique'}</span>
-          <h2 class="carousel-title">${slide.titulo}</h2>
-          <p class="carousel-desc">${slide.descripcion || ''}</p>
-          ${slide.ctaUrl ? `
-          <button class="btn-jal-primary"
-                  type="button"
-                  data-carousel-cta="${slide.ctaUrl}"
-                  aria-label="${slide.ctaTexto || 'Ver más'}">
-            ${slide.ctaTexto || 'Ver más'}
-            <i class="bi bi-arrow-right ms-1"></i>
-          </button>` : ''}
+          <!-- Overlay oscuro -->
+          <div class="carousel-overlay" aria-hidden="true"></div>
+
+          <!-- Contenido -->
+          <div class="carousel-content">
+            <span class="carousel-tag">${tag}</span>
+            <h2 class="carousel-title">${titulo}</h2>
+            <p class="carousel-desc">${descripcion}</p>
+            ${slide.ctaUrl ? `
+            <button class="btn-jal-primary"
+                    type="button"
+                    data-carousel-cta="${ctaUrl}"
+                    aria-label="${ctaTexto}">
+              ${ctaTexto}
+              <i class="bi bi-arrow-right ms-1"></i>
+            </button>` : ''}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     const dotsHTML = slides.length > 1
       ? slides.map((_, i) => `
@@ -250,6 +259,19 @@ const Carousel = {
     // Animar con transición lineal
     this._progressFill.style.transition = `width ${duracion}ms linear`;
     this._progressFill.style.width      = '100%';
+  },
+
+  /**
+   * Escapa HTML para campos configurables del carrusel.
+   * @private
+   */
+  _esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   /**

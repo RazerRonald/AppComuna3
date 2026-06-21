@@ -262,6 +262,8 @@ const PublicoView = {
       onSuccess: (noticia) => {
         const container = document.getElementById('noticia-detalle-content');
         if (!container) return;
+        const titulo = this._esc(noticia.titulo);
+        const cuerpo = this._esc(noticia.cuerpo || '').replace(/\n/g, '<br>');
         container.innerHTML = `
           <div class="col-lg-8 animate-fade-in-up">
             <a href="#/noticias" class="btn-jal-secondary mb-4 d-inline-flex align-items-center gap-2">
@@ -270,7 +272,7 @@ const PublicoView = {
 
             ${this._buildNoticiaMediaDetalle(noticia)}
 
-            <h1 class="noticia-detail-titulo">${noticia.titulo}</h1>
+            <h1 class="noticia-detail-titulo">${titulo}</h1>
 
             <div class="noticia-detail-meta">
               <span class="meta-item">
@@ -280,7 +282,7 @@ const PublicoView = {
             </div>
 
             <div class="noticia-detail-cuerpo">
-              ${noticia.cuerpo.replace(/\n/g, '<br>')}
+              ${cuerpo}
             </div>
 
             <div class="mt-4 pt-3 border-top">
@@ -294,7 +296,7 @@ const PublicoView = {
       onError: (msg) => {
         const container = document.getElementById('noticia-detalle-content');
         if (container) {
-          container.innerHTML = `<div class="col-12"><div class="alert alert-warning">${msg}</div></div>`;
+          container.innerHTML = `<div class="col-12"><div class="alert alert-warning">${this._esc(msg)}</div></div>`;
         }
         Toast.error(msg);
       },
@@ -634,14 +636,15 @@ const PublicoView = {
    */
   _buildNoticiaCard(noticia) {
     const fecha = this._formatearFecha(noticia.fechaPublicacion);
+    const titulo = this._esc(noticia.titulo);
     return `
       <div class="col-md-6 col-lg-4 animate-fade-in-up">
         <article class="card-noticia cursor-pointer"
-                 data-id="${noticia.id}"
+                 data-id="${this._esc(noticia.id)}"
                  data-noticia-card
                  role="button"
                  tabindex="0"
-                 aria-label="Leer noticia: ${noticia.titulo}">
+                 aria-label="Leer noticia: ${titulo}">
           <div class="card-img-wrapper">
             ${this._buildNoticiaMediaCard(noticia)}
           </div>
@@ -649,7 +652,7 @@ const PublicoView = {
             <p class="card-fecha">
               <i class="bi bi-calendar3 me-1"></i>${fecha}
             </p>
-            <h3 class="card-title">${noticia.titulo}</h3>
+            <h3 class="card-title">${titulo}</h3>
             <div class="card-footer-custom">
               <span class="text-primary fw-600" style="font-size:0.85rem;">
                 ${i18n.noticias.verDetalle} <i class="bi bi-arrow-right ms-1"></i>
@@ -667,13 +670,14 @@ const PublicoView = {
    */
   _buildNoticiaMediaCard(noticia) {
     const media = this._getMediaNoticia(noticia);
+    const titulo = this._esc(noticia.titulo);
 
     if (!media.url) {
       return `<div class="card-img-placeholder"><i class="bi bi-newspaper"></i></div>`;
     }
 
     return `
-      <img src="${media.url}" alt="${noticia.titulo}" loading="lazy"
+      <img src="${this._esc(media.url)}" alt="${titulo}" loading="lazy"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
       <div class="card-img-placeholder" style="display:none;"><i class="bi bi-image"></i></div>
       ${media.tipo === 'video' ? `
@@ -690,14 +694,15 @@ const PublicoView = {
    */
   _buildNoticiaMediaDetalle(noticia) {
     const media = this._getMediaNoticia(noticia);
+    const titulo = this._esc(noticia.titulo);
 
     if (!media.url) return '';
 
     if (media.tipo === 'video' && media.embedUrl) {
       return `
         <div class="noticia-detail-video">
-          <iframe src="${media.embedUrl}"
-                  title="${noticia.titulo}"
+          <iframe src="${this._esc(media.embedUrl)}"
+                  title="${titulo}"
                   allow="autoplay; encrypted-media"
                   allowfullscreen></iframe>
         </div>
@@ -705,8 +710,8 @@ const PublicoView = {
     }
 
     return `
-      <img src="${media.url}"
-           alt="${noticia.titulo}"
+      <img src="${this._esc(media.url)}"
+           alt="${titulo}"
            class="noticia-detail-img"
            onerror="this.style.display='none'" />
     `;
@@ -761,6 +766,9 @@ const PublicoView = {
     const dia       = fechaDate.getDate().toString().padStart(2, '0');
     const mes       = fechaDate.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '');
     const horaFmt   = fechaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const titulo    = this._esc(evento.titulo);
+    const lugar     = this._esc(evento.lugar);
+    const descripcion = this._esc(evento.descripcion || '');
 
     return `
       <div class="col-md-6 col-lg-3 animate-fade-in-up">
@@ -769,19 +777,19 @@ const PublicoView = {
             <span class="day">${dia}</span>
             <span class="month">${mes}</span>
           </div>
-          <h3 class="evento-title">${evento.titulo}</h3>
+          <h3 class="evento-title">${titulo}</h3>
           <p class="evento-meta">
             <i class="bi bi-clock" aria-hidden="true"></i>
             <span>${horaFmt}</span>
           </p>
           <p class="evento-meta">
             <i class="bi bi-geo-alt" aria-hidden="true"></i>
-            <span>${evento.lugar}</span>
+            <span>${lugar}</span>
           </p>
           ${evento.descripcion
             ? `<p class="text-muted small mt-2 mb-0"
                   style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-                ${evento.descripcion}
+                ${descripcion}
               </p>`
             : ''}
           ${this._buildBotonCalendario(evento)}
@@ -804,10 +812,10 @@ const PublicoView = {
           <i class="bi bi-calendar-plus" aria-hidden="true"></i>${i18n.eventos.anadirCalendario}
         </summary>
         <div class="evento-cal-menu">
-          <a class="evento-cal-item" href="${googleUrl}" target="_blank" rel="noopener noreferrer">
+          <a class="evento-cal-item" href="${this._esc(googleUrl)}" target="_blank" rel="noopener noreferrer">
             <i class="bi bi-google" aria-hidden="true"></i><span>${i18n.eventos.calGoogle}</span>
           </a>
-          <button type="button" class="evento-cal-item btn-ics-evento" data-evento-id="${evento.id}">
+          <button type="button" class="evento-cal-item btn-ics-evento" data-evento-id="${this._esc(evento.id)}">
             <i class="bi bi-calendar-event" aria-hidden="true"></i><span>${i18n.eventos.calIcs}</span>
           </button>
         </div>
@@ -1037,6 +1045,19 @@ const PublicoView = {
       hour:   '2-digit',
       minute: '2-digit',
     });
+  },
+
+  /**
+   * Escapa HTML para prevenir inyeccion de marcado en datos dinamicos.
+   * @private
+   */
+  _esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   /**

@@ -47,7 +47,7 @@ const AdminView = {
       <div class="page-hero">
         <div class="container">
           <h1><i class="bi bi-speedometer2 me-2"></i>${i18n.admin.titulo}</h1>
-          <p class="page-hero-sub">Bienvenido, <strong>${sesion.nombre}</strong> — ${i18n.admin.subtitulo}</p>
+          <p class="page-hero-sub">Bienvenido, <strong>${this._esc(sesion.nombre)}</strong> — ${i18n.admin.subtitulo}</p>
         </div>
       </div>
 
@@ -303,29 +303,33 @@ const AdminView = {
       return;
     }
 
-    tbody.innerHTML = noticias.map((n) => `
-      <tr data-id="${n.id}">
-        <td>
-          <div class="fw-600 text-truncate" style="max-width:300px;" title="${n.titulo}">${n.titulo}</div>
-        </td>
-        <td class="text-muted small">${this._formatFecha(n.fechaPublicacion)}</td>
-        <td class="text-end">
-          <div class="d-flex gap-2 justify-content-end">
-            <button class="btn btn-sm btn-outline-primary btn-editar-noticia"
-                    data-id="${n.id}"
-                    aria-label="Editar noticia ${n.titulo}">
-              <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-danger btn-eliminar-noticia"
-                    data-id="${n.id}"
-                    data-titulo="${n.titulo}"
-                    aria-label="Eliminar noticia ${n.titulo}">
-              <i class="bi bi-trash"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = noticias.map((n) => {
+      const id = this._esc(n.id);
+      const titulo = this._esc(n.titulo);
+      return `
+        <tr data-id="${id}">
+          <td>
+            <div class="fw-600 text-truncate" style="max-width:300px;" title="${titulo}">${titulo}</div>
+          </td>
+          <td class="text-muted small">${this._formatFecha(n.fechaPublicacion)}</td>
+          <td class="text-end">
+            <div class="d-flex gap-2 justify-content-end">
+              <button class="btn btn-sm btn-outline-primary btn-editar-noticia"
+                      data-id="${id}"
+                      aria-label="Editar noticia ${titulo}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger btn-eliminar-noticia"
+                      data-id="${id}"
+                      data-titulo="${titulo}"
+                      aria-label="Eliminar noticia ${titulo}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     // Bind botones
     tbody.querySelectorAll('.btn-editar-noticia').forEach((btn) => {
@@ -338,7 +342,7 @@ const AdminView = {
     tbody.querySelectorAll('.btn-eliminar-noticia').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._confirmar(
-          `¿Eliminar la noticia "<strong>${btn.dataset.titulo}</strong>"?`,
+          `¿Eliminar la noticia "<strong>${this._esc(btn.dataset.titulo)}</strong>"?`,
           async () => {
             await NoticiaController.eliminar(btn.dataset.id, {
               onLoading: () => {},
@@ -364,6 +368,8 @@ const AdminView = {
     if (!container) return;
 
     const esEdicion = Boolean(noticia);
+    const titulo = this._esc(noticia?.titulo || '');
+    const cuerpo = this._esc(noticia?.cuerpo || '');
 
     container.classList.remove('d-none');
     container.innerHTML = `
@@ -380,7 +386,7 @@ const AdminView = {
                    name="titulo"
                    class="form-control"
                    placeholder="${i18n.noticias.placeholderTitulo}"
-                   value="${noticia?.titulo || ''}"
+                   value="${titulo}"
                    required
                    maxlength="200" />
           </div>
@@ -406,7 +412,7 @@ const AdminView = {
                       class="form-control"
                       rows="8"
                       placeholder="${i18n.noticias.placeholderCuerpo}"
-                      required>${noticia?.cuerpo || ''}</textarea>
+                      required>${cuerpo}</textarea>
           </div>
           <div id="form-noticia-error" class="alert alert-danger d-none mb-3" role="alert"></div>
           <div class="d-flex gap-2 flex-wrap">
@@ -579,20 +585,23 @@ const AdminView = {
     tbody.innerHTML = eventos.map((ev) => {
       const fecha = ev.fecha?.toDate ? ev.fecha.toDate() : new Date(ev.fecha);
       const fechaStr = fecha.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+      const id = this._esc(ev.id);
+      const titulo = this._esc(ev.titulo);
+      const lugar = this._esc(ev.lugar);
       return `
         <tr>
-          <td class="fw-600">${ev.titulo}</td>
+          <td class="fw-600">${titulo}</td>
           <td class="text-muted small">${fechaStr}</td>
-          <td class="text-muted small text-truncate" style="max-width:150px;">${ev.lugar}</td>
+          <td class="text-muted small text-truncate" style="max-width:150px;">${lugar}</td>
           <td class="text-end">
             <div class="d-flex gap-2 justify-content-end">
-              <button class="btn btn-sm btn-outline-primary btn-editar-evento" data-id="${ev.id}"
-                      aria-label="Editar evento ${ev.titulo}">
+              <button class="btn btn-sm btn-outline-primary btn-editar-evento" data-id="${id}"
+                      aria-label="Editar evento ${titulo}">
                 <i class="bi bi-pencil"></i>
               </button>
               <button class="btn btn-sm btn-outline-danger btn-eliminar-evento"
-                      data-id="${ev.id}" data-titulo="${ev.titulo}"
-                      aria-label="Eliminar evento ${ev.titulo}">
+                      data-id="${id}" data-titulo="${titulo}"
+                      aria-label="Eliminar evento ${titulo}">
                 <i class="bi bi-trash"></i>
               </button>
             </div>
@@ -611,7 +620,7 @@ const AdminView = {
     tbody.querySelectorAll('.btn-eliminar-evento').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._confirmar(
-          `¿Eliminar el evento "<strong>${btn.dataset.titulo}</strong>"?`,
+          `¿Eliminar el evento "<strong>${this._esc(btn.dataset.titulo)}</strong>"?`,
           async () => {
             await EventoController.eliminar(btn.dataset.id, {
               onLoading: () => {},
@@ -635,6 +644,9 @@ const AdminView = {
     if (!container) return;
 
     const esEdicion = Boolean(evento);
+    const titulo = this._esc(evento?.titulo || '');
+    const lugar = this._esc(evento?.lugar || '');
+    const descripcion = this._esc(evento?.descripcion || '');
 
     // Formatear fechas para datetime-local input (YYYY-MM-DDTHH:mm)
     const fechaVal    = this._formatDatetimeLocal(evento?.fecha);
@@ -653,13 +665,13 @@ const AdminView = {
               <label for="evento-titulo" class="form-label">${i18n.eventos.campoTitulo} *</label>
               <input type="text" id="evento-titulo" class="form-control"
                      placeholder="${i18n.eventos.placeholderTitulo}"
-                     value="${evento?.titulo || ''}" required />
+                     value="${titulo}" required />
             </div>
             <div class="col-md-6">
               <label for="evento-lugar" class="form-label">${i18n.eventos.campoLugar} *</label>
               <input type="text" id="evento-lugar" class="form-control"
                      placeholder="${i18n.eventos.placeholderLugar}"
-                     value="${evento?.lugar || ''}" required />
+                     value="${lugar}" required />
             </div>
             <div class="col-md-6">
               <label for="evento-fecha" class="form-label">${i18n.eventos.campoFechaInicio} *</label>
@@ -675,7 +687,7 @@ const AdminView = {
               <label for="evento-descripcion" class="form-label">${i18n.eventos.campoDescripcion} *</label>
               <textarea id="evento-descripcion" class="form-control" rows="3"
                         placeholder="${i18n.eventos.placeholderDescripcion}"
-                        required>${evento?.descripcion || ''}</textarea>
+                        required>${descripcion}</textarea>
             </div>
           </div>
           <div id="form-evento-error" class="alert alert-danger d-none mt-3" role="alert"></div>
@@ -843,7 +855,7 @@ const AdminView = {
       }[t.estado] || '';
 
       return `
-        <tr data-tramite-id="${t.id}">
+        <tr data-tramite-id="${this._esc(t.id)}">
           <td>
             <div class="fw-600">${this._esc(t.nombre_completo)}</div>
             <small class="text-muted">${this._esc(t.tipo_documento)} ${this._esc(t.numero_documento)}</small>
@@ -852,10 +864,10 @@ const AdminView = {
             <div>${this._esc(t.carrera)}</div>
             <small class="text-muted">Semestre: ${this._esc(t.semestre_actual ?? '—')}</small>
           </td>
-          <td class="small">${t.horas_a_realizar ?? '—'} h</td>
+          <td class="small">${this._esc(t.horas_a_realizar ?? '—')} h</td>
           <td class="small text-muted">${fecha}</td>
           <td>
-            <span class="badge-estado ${badgeClass}">${t.estado}</span>
+            <span class="badge-estado ${badgeClass}">${this._esc(t.estado)}</span>
             ${t.finalizacion_estado ? `
               <div class="mt-2">
                 <span class="badge bg-info-subtle text-info-emphasis">Finalización: ${this._esc(t.finalizacion_estado)}</span>
@@ -866,18 +878,18 @@ const AdminView = {
             <div class="d-flex gap-1 justify-content-end flex-wrap">
               ${t.estado === ESTADOS_TRAMITE.PENDIENTE ? `
                 <button class="btn btn-sm btn-jal-primary btn-vista-previa"
-                        data-id="${t.id}"
+                        data-id="${this._esc(t.id)}"
                         aria-label="${i18n.admin.vistaPrevia}">
                   <i class="bi bi-eye"></i> ${i18n.admin.vistaPrevia}
                 </button>
                 <button class="btn btn-sm btn-jal-danger btn-rechazar-tramite"
-                        data-id="${t.id}"
+                        data-id="${this._esc(t.id)}"
                         aria-label="Rechazar solicitud">
                   <i class="bi bi-x-lg"></i> ${i18n.admin.rechazar}
                 </button>
               ` : ''}
               ${t.estado === ESTADOS_TRAMITE.EXPEDIDA && t.documento_expedido_url ? `
-                <a href="${t.documento_expedido_url}" target="_blank" rel="noopener noreferrer"
+                <a href="${this._esc(t.documento_expedido_url)}" target="_blank" rel="noopener noreferrer"
                    class="btn btn-sm btn-outline-success"
                    aria-label="Ver carta expedida">
                   <i class="bi bi-file-earmark-check"></i> Ver carta
@@ -885,13 +897,13 @@ const AdminView = {
               ` : ''}
               ${t.finalizacion_estado === 'Pendiente' ? `
                 <button class="btn btn-sm btn-outline-primary btn-vista-previa-finalizacion"
-                        data-id="${t.id}"
+                        data-id="${this._esc(t.id)}"
                         aria-label="Expedir carta de finalización">
                   <i class="bi bi-file-earmark-plus"></i> Finalización
                 </button>
               ` : ''}
               ${t.finalizacion_estado === 'Expedida' && t.documento_finalizacion_url ? `
-                <a href="${t.documento_finalizacion_url}" target="_blank" rel="noopener noreferrer"
+                <a href="${this._esc(t.documento_finalizacion_url)}" target="_blank" rel="noopener noreferrer"
                    class="btn btn-sm btn-outline-success"
                    aria-label="Ver carta de finalización expedida">
                   <i class="bi bi-file-earmark-check"></i> Ver finalización
@@ -1002,7 +1014,7 @@ const AdminView = {
         estudiante de la <strong>${this._esc(tramite.universidad)}</strong>
         en la carrera de <strong>${this._esc(tramite.carrera)}</strong>,
         actualmente cursando el semestre <strong>${this._esc(tramite.semestre_actual ?? '—')}</strong>,
-        realice las <strong>${tramite.horas_a_realizar}</strong> horas de servicio social
+        realice las <strong>${this._esc(tramite.horas_a_realizar)}</strong> horas de servicio social
         en el lugar <strong>${this._esc(tramite.lugar_realizacion)}</strong>.
       </p>
       <p class="mt-4 mb-1">Cordialmente,</p>
@@ -1102,7 +1114,7 @@ const AdminView = {
         Estudiante de la <strong>${this._esc(tramite.universidad)}</strong>
         del programa de <strong>${this._esc(tramite.carrera)}</strong>,
         en el <strong>${this._esc(tramite.semestre_actual ?? '—')}</strong> semestre
-        cumplió con <strong>${tramite.horas_a_realizar}</strong> horas de servicio social
+        cumplió con <strong>${this._esc(tramite.horas_a_realizar)}</strong> horas de servicio social
         en <strong>${this._esc(tramite.lugar_realizacion)}</strong>.
       </p>
       <p class="mt-4 mb-1">Cordialmente,</p>
@@ -1273,9 +1285,12 @@ const AdminView = {
    * @private
    */
   _esc(str) {
-    const div = document.createElement('div');
-    div.textContent = str ?? '';
-    return div.innerHTML;
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   // ─── HELPERS ──────────────────────────────────────────────────────────

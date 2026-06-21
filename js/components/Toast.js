@@ -55,13 +55,14 @@ const Toast = {
     }
 
     const id        = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const icono     = ICONOS[tipo]      || ICONOS.info;
-    const tituloFin = titulo            || TITULOS[tipo] || TITULOS.info;
-    const colorIcon = COLORES_ICONO[tipo] || 'text-info';
+    const tipoSeguro = Object.prototype.hasOwnProperty.call(ICONOS, tipo) ? tipo : 'info';
+    const icono      = ICONOS[tipoSeguro];
+    const tituloFin  = titulo || TITULOS[tipoSeguro] || TITULOS.info;
+    const colorIcon  = COLORES_ICONO[tipoSeguro] || 'text-info';
 
     const toastEl = document.createElement('div');
     toastEl.id              = id;
-    toastEl.className       = `toast toast-jal toast-${tipo} align-items-start`;
+    toastEl.className       = `toast toast-jal toast-${tipoSeguro} align-items-start`;
     toastEl.setAttribute('role',        'alert');
     toastEl.setAttribute('aria-live',   'assertive');
     toastEl.setAttribute('aria-atomic', 'true');
@@ -69,7 +70,7 @@ const Toast = {
     toastEl.innerHTML = `
       <div class="toast-header">
         <i class="bi ${icono} ${colorIcon} me-2 fs-5"></i>
-        <strong class="me-auto">${tituloFin}</strong>
+        <strong class="me-auto">${this._esc(tituloFin)}</strong>
         <button type="button"
                 class="btn-close btn-close-sm ms-2"
                 data-bs-dismiss="toast"
@@ -77,7 +78,7 @@ const Toast = {
                 id="${id}-close">
         </button>
       </div>
-      <div class="toast-body">${mensaje}</div>
+      <div class="toast-body">${this._esc(mensaje)}</div>
     `;
 
     container.appendChild(toastEl);
@@ -138,6 +139,19 @@ const Toast = {
    */
   info(mensaje, titulo) {
     this.mostrar({ mensaje, tipo: 'info', titulo });
+  },
+
+  /**
+   * Escapa HTML para prevenir inyeccion en mensajes de toast.
+   * @private
+   */
+  _esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 };
 

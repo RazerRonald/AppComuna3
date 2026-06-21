@@ -152,7 +152,9 @@ const Navbar = {
   _buildDropdownPerfil(sesion, tipo) {
     const badgeClass  = tipo === 'edil' ? 'role-badge-edil' : 'role-badge-estudiante';
     const badgeTexto  = tipo === 'edil' ? 'Edil' : 'Estudiante';
-    const iniciales   = this._obtenerIniciales(sesion.nombre);
+    const iniciales   = this._esc(this._obtenerIniciales(sesion.nombre));
+    const nombre      = this._esc(sesion.nombre);
+    const email       = this._esc(sesion.email);
 
     return `
       <div class="dropdown">
@@ -169,7 +171,7 @@ const Navbar = {
             font-size:0.75rem;font-weight:700;color:white;flex-shrink:0;
           ">${iniciales}</div>
           <div class="d-none d-lg-flex flex-column align-items-start">
-            <span style="font-size:0.8rem;font-weight:600;color:white;line-height:1.2;">${sesion.nombre}</span>
+            <span style="font-size:0.8rem;font-weight:600;color:white;line-height:1.2;">${nombre}</span>
             <span class="role-badge ${badgeClass}">${badgeTexto}</span>
           </div>
           <i class="bi bi-chevron-down text-white-50" style="font-size:0.7rem;"></i>
@@ -178,7 +180,7 @@ const Navbar = {
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownPerfil">
           <li>
             <span class="dropdown-item-text text-white-50" style="font-size:0.75rem;padding:0.4rem 1rem;">
-              ${sesion.email}
+              ${email}
             </span>
           </li>
           <li><hr class="dropdown-divider" style="border-color:rgba(255,255,255,.1);margin:0.25rem 0;"></li>
@@ -216,6 +218,19 @@ const Navbar = {
     const partes = nombre.trim().split(' ').filter(Boolean);
     if (partes.length === 1) return partes[0][0].toUpperCase();
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  },
+
+  /**
+   * Escapa HTML para datos de sesion renderizados en la navbar.
+   * @private
+   */
+  _esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   /**
