@@ -504,6 +504,21 @@ const ArchivoModel = {
   },
 
   /**
+   * Marca la solicitud de carta de finalizacion como rechazada.
+   *
+   * @param {string} tramiteId
+   * @returns {Promise<void>}
+   */
+  async rechazarFinalizacion(tramiteId) {
+    await updateDoc(doc(db, COL_ARCHIVOS, tramiteId), {
+      finalizacion_solicitada: true,
+      finalizacion_estado: 'Rechazada',
+      documento_finalizacion_id: null,
+      documento_finalizacion_url: null,
+    });
+  },
+
+  /**
    * Listener en tiempo real para todos los trámites.
    *
    * @param {function(Tramite[]): void} callback

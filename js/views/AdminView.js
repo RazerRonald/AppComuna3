@@ -853,6 +853,11 @@ const AdminView = {
         [ESTADOS_TRAMITE.RECHAZADO]: 'badge-rechazado',
         [ESTADOS_TRAMITE.EXPEDIDA]:  'badge-expedida',
       }[t.estado] || '';
+      const finalizacionBadgeClass = {
+        Pendiente:  'bg-primary-subtle text-primary-emphasis',
+        Expedida:   'bg-success-subtle text-success-emphasis',
+        Rechazada:  'bg-danger-subtle text-danger-emphasis',
+      }[t.finalizacion_estado] || 'bg-secondary-subtle text-secondary-emphasis';
 
       return `
         <tr data-tramite-id="${this._esc(t.id)}">
@@ -870,7 +875,7 @@ const AdminView = {
             <span class="badge-estado ${badgeClass}">${this._esc(t.estado)}</span>
             ${t.finalizacion_estado ? `
               <div class="mt-2">
-                <span class="badge bg-info-subtle text-info-emphasis">Finalización: ${this._esc(t.finalizacion_estado)}</span>
+                <span class="badge ${finalizacionBadgeClass}">Finalización: ${this._esc(t.finalizacion_estado)}</span>
               </div>
             ` : ''}
           </td>
@@ -900,6 +905,11 @@ const AdminView = {
                         data-id="${this._esc(t.id)}"
                         aria-label="Expedir carta de finalización">
                   <i class="bi bi-file-earmark-plus"></i> Finalización
+                </button>
+                <button class="btn btn-sm btn-outline-danger btn-rechazar-finalizacion"
+                        data-id="${this._esc(t.id)}"
+                        aria-label="${i18n.admin.rechazarFinalizacion}">
+                  <i class="bi bi-x-lg"></i> ${i18n.admin.rechazar}
                 </button>
               ` : ''}
               ${t.finalizacion_estado === 'Expedida' && t.documento_finalizacion_url ? `
@@ -938,6 +948,18 @@ const AdminView = {
       btn.addEventListener('click', () => {
         const tramite = tramites.find((t) => t.id === btn.dataset.id);
         if (tramite) this._mostrarVistaPreviaFinalizacion(tramite);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-rechazar-finalizacion').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this._confirmar(i18n.admin.confirmarRechazarFinalizacion, async () => {
+          await ArchivoController.rechazarFinalizacion(btn.dataset.id, {
+            onLoading: () => {},
+            onSuccess: () => Toast.exito(i18n.admin.finalizacionRechazadaOk),
+            onError:   (msg) => Toast.error(msg),
+          });
+        });
       });
     });
   },
