@@ -247,22 +247,6 @@ const ArchivoController = {
   },
 
   /**
-   * Rechaza una solicitud de carta de finalizacion.
-   */
-  async rechazarFinalizacion(tramiteId, { onLoading, onSuccess, onError }) {
-    onLoading(true);
-    try {
-      await ArchivoModel.rechazarFinalizacion(tramiteId);
-      onSuccess();
-    } catch (err) {
-      console.error('[ArchivoController.rechazarFinalizacion]', err);
-      onError(i18n.admin.errorAccion);
-    } finally {
-      onLoading(false);
-    }
-  },
-
-  /**
    * Suscribe listener a todos los trámites.
    */
   suscribirTodos(callback) {

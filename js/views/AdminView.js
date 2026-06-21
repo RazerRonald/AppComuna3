@@ -906,11 +906,6 @@ const AdminView = {
                         aria-label="Expedir carta de finalización">
                   <i class="bi bi-file-earmark-plus"></i> Finalización
                 </button>
-                <button class="btn btn-sm btn-outline-danger btn-rechazar-finalizacion"
-                        data-id="${this._esc(t.id)}"
-                        aria-label="${i18n.admin.rechazarFinalizacion}">
-                  <i class="bi bi-x-lg"></i> ${i18n.admin.rechazar}
-                </button>
               ` : ''}
               ${t.finalizacion_estado === 'Expedida' && t.documento_finalizacion_url ? `
                 <a href="${this._esc(t.documento_finalizacion_url)}" target="_blank" rel="noopener noreferrer"
@@ -951,17 +946,6 @@ const AdminView = {
       });
     });
 
-    tbody.querySelectorAll('.btn-rechazar-finalizacion').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this._confirmar(i18n.admin.confirmarRechazarFinalizacion, async () => {
-          await ArchivoController.rechazarFinalizacion(btn.dataset.id, {
-            onLoading: () => {},
-            onSuccess: () => Toast.exito(i18n.admin.finalizacionRechazadaOk),
-            onError:   (msg) => Toast.error(msg),
-          });
-        });
-      });
-    });
   },
 
   /**
