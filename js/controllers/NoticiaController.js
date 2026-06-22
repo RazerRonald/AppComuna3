@@ -112,6 +112,7 @@ const NoticiaController = {
     onLoading(true);
     let noticiaId = null;
     let mediaDriveId = null;
+    let mediaFolderId = null;
     try {
       noticiaId = await NoticiaModel.create({
         titulo:     datosLimpios.titulo,
@@ -124,13 +125,14 @@ const NoticiaController = {
         titulo: datosLimpios.titulo,
       });
       mediaDriveId = media.media_drive_id;
+      mediaFolderId = media.media_folder_id;
 
       await NoticiaModel.updateMedia(noticiaId, media);
       onSuccess(noticiaId);
     } catch (err) {
       console.error('[NoticiaController.crear]', err);
       if (noticiaId) {
-        await this._rollbackCrearNoticia(noticiaId, mediaDriveId);
+        await this._rollbackCrearNoticia(noticiaId, mediaDriveId, mediaFolderId);
       }
       onError(err?.message || i18n.noticias.errorGuardar);
     } finally {
@@ -212,11 +214,14 @@ const NoticiaController = {
     try {
       const noticia = await NoticiaModel.getById(id);
       await NoticiaModel.delete(id);
-      if (noticia?.media_drive_id) {
+      if (noticia?.media_drive_id || noticia?.media_folder_id) {
         try {
-          await NoticiaMediaModel.eliminarArchivo(noticia.media_drive_id);
+          await NoticiaMediaModel.eliminarContenidoNoticia({
+            fileId: noticia.media_drive_id,
+            folderId: noticia.media_folder_id,
+          });
         } catch (mediaErr) {
-          console.warn('[NoticiaController.eliminar] No se pudo eliminar el archivo de Drive', mediaErr);
+          console.warn('[NoticiaController.eliminar] No se pudo eliminar todo el contenido de Drive', mediaErr);
         }
       }
       onSuccess();
@@ -283,10 +288,13 @@ const NoticiaController = {
    *
    * @private
    */
-  async _rollbackCrearNoticia(noticiaId, mediaDriveId) {
+  async _rollbackCrearNoticia(noticiaId, mediaDriveId, mediaFolderId = null) {
     try {
-      if (mediaDriveId) {
-        await NoticiaMediaModel.eliminarArchivo(mediaDriveId);
+      if (mediaDriveId || mediaFolderId) {
+        await NoticiaMediaModel.eliminarContenidoNoticia({
+          fileId: mediaDriveId,
+          folderId: mediaFolderId,
+        });
       }
       await NoticiaModel.delete(noticiaId);
     } catch (err) {

@@ -95,16 +95,23 @@ const NoticiaMediaModel = {
   },
 
   /**
-   * Elimina un archivo de Drive creado por la aplicacion.
+   * Elimina el archivo y la subcarpeta de Drive asociados a una noticia.
    *
-   * @param {string} fileId
+   * @param {Object} contenido
+   * @param {string|null} contenido.fileId
+   * @param {string|null} contenido.folderId
    * @returns {Promise<void>}
    */
-  async eliminarArchivo(fileId) {
-    if (!fileId) return;
-    return DriveAuthModel.ejecutarEnCola('eliminar contenido de noticia en Drive', async () => {
+  async eliminarContenidoNoticia({ fileId, folderId } = {}) {
+    const archivoId = String(fileId || '').trim();
+    const carpetaId = String(folderId || '').trim();
+
+    if (!archivoId && !carpetaId) return;
+
+    return DriveAuthModel.ejecutarEnCola('eliminar carpeta de noticia en Drive', async () => {
       await this._solicitarToken();
-      await this._eliminarArchivoSiExiste(fileId);
+      if (archivoId) await this._eliminarArchivoSiExiste(archivoId);
+      if (carpetaId) await this._eliminarCarpetaSiExiste(carpetaId);
     });
   },
 
@@ -169,6 +176,22 @@ const NoticiaMediaModel = {
       );
     } catch (err) {
       console.warn('[NoticiaMediaModel._eliminarArchivoSiExiste] No se pudo eliminar archivo anterior', err);
+    }
+  },
+
+  async _eliminarCarpetaSiExiste(folderId) {
+    const carpetaContenidoId = String(DRIVE_CONFIG.CONTENT_FOLDER_ID || '').trim();
+    if (carpetaContenidoId && folderId === carpetaContenidoId) {
+      console.warn('[NoticiaMediaModel._eliminarCarpetaSiExiste] Se omitio eliminar la carpeta raiz de contenido');
+      return;
+    }
+
+    try {
+      await DriveAuthModel.gapiDrive('eliminar carpeta de noticia en Drive', () =>
+        window.gapi.client.drive.files.delete({ fileId: folderId })
+      );
+    } catch (err) {
+      console.warn('[NoticiaMediaModel._eliminarCarpetaSiExiste] No se pudo eliminar carpeta de noticia', err);
     }
   },
 
