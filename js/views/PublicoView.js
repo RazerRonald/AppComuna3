@@ -770,10 +770,12 @@ const PublicoView = {
    * @returns {string}
    */
   _buildEventoCard(evento) {
-    const fechaDate = evento.fecha?.toDate ? evento.fecha.toDate() : new Date(evento.fecha);
-    const dia       = fechaDate.toLocaleDateString('es-CO', { day: '2-digit', timeZone: EVENTOS_TIME_ZONE });
-    const mes       = fechaDate.toLocaleDateString('es-CO', { month: 'short', timeZone: EVENTOS_TIME_ZONE }).replace('.', '');
-    const horaFmt   = fechaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: EVENTOS_TIME_ZONE });
+    const { inicio, fin } = this._rangoEvento(evento);
+    const dia       = inicio.toLocaleDateString('es-CO', { day: '2-digit', timeZone: EVENTOS_TIME_ZONE });
+    const mes       = inicio.toLocaleDateString('es-CO', { month: 'short', timeZone: EVENTOS_TIME_ZONE }).replace('.', '');
+    const horaInicio = this._formatearHoraEvento(inicio);
+    const horaFin    = this._formatearHoraEvento(fin);
+    const horaFmt    = `${horaInicio} - ${horaFin}`;
     const titulo    = this._esc(evento.titulo);
     const lugar     = this._esc(evento.lugar);
     const descripcion = this._esc(evento.descripcion || '');
@@ -836,6 +838,18 @@ const PublicoView = {
       fin = new Date(inicio.getTime() + 2 * 60 * 60 * 1000);
     }
     return { inicio, fin };
+  },
+
+  /**
+   * Formatea la hora de un evento en la zona horaria de Colombia.
+   * @private
+   */
+  _formatearHoraEvento(date) {
+    return date.toLocaleTimeString('es-CO', {
+      hour:     '2-digit',
+      minute:   '2-digit',
+      timeZone: EVENTOS_TIME_ZONE,
+    });
   },
 
   /**
