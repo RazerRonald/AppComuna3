@@ -41,9 +41,6 @@ const SLIDES_HERO = [
 ];
 
 const PublicoView = {
-  /** @type {import('../models/EventoModel.js').Evento[]} Eventos renderizados (para generar el .ics) */
-  _eventosCalCache: [],
-
   // ─── INICIO ──────────────────────────────────────────────────────────────
 
   /**
@@ -349,7 +346,6 @@ const PublicoView = {
     await EventoController.listarRecientes({
       onLoading: () => {},
       onSuccess: (eventos) => {
-        this._eventosCalCache = eventos;
         this._renderEventosListado(eventos);
         this._bindSearchInput('buscador-eventos', (termino) => {
           const filtrados = this._filtrarEventos(eventos, termino);
@@ -508,9 +504,7 @@ const PublicoView = {
       container.innerHTML = `<div class="col-12">${this._buildEmptyState(i18n.eventos.sinEventos, '', 'bi-calendar-x')}</div>`;
       return;
     }
-    this._eventosCalCache = eventos;
     container.innerHTML = eventos.map((e) => this._buildEventoCard(e)).join('');
-    this._bindCalendario();
   },
 
   /**
@@ -548,7 +542,6 @@ const PublicoView = {
     }
 
     container.innerHTML = eventos.map((e) => this._buildEventoCard(e)).join('');
-    this._bindCalendario();
   },
 
   /**
@@ -812,27 +805,19 @@ const PublicoView = {
   },
 
   /**
-   * Construye el botón "Añadir al Calendario" con un desplegable en flujo
-   * (Google Calendar + descarga .ics). Se usa <details> para no depender de
-   * overlays que la tarjeta (overflow:hidden) recortaría.
+   * Construye el enlace para anadir el evento a Google Calendar.
    * @private
    */
   _buildBotonCalendario(evento) {
     const googleUrl = this._buildGoogleCalendarUrl(evento);
     return `
-      <details class="evento-cal">
-        <summary aria-label="${i18n.eventos.anadirCalendario}">
-          <i class="bi bi-calendar-plus" aria-hidden="true"></i>${i18n.eventos.anadirCalendario}
-        </summary>
-        <div class="evento-cal-menu">
-          <a class="evento-cal-item" href="${this._esc(googleUrl)}" target="_blank" rel="noopener noreferrer">
-            <i class="bi bi-google" aria-hidden="true"></i><span>${i18n.eventos.calGoogle}</span>
-          </a>
-          <button type="button" class="evento-cal-item btn-ics-evento" data-evento-id="${this._esc(evento.id)}">
-            <i class="bi bi-calendar-event" aria-hidden="true"></i><span>${i18n.eventos.calIcs}</span>
-          </button>
-        </div>
-      </details>
+      <a class="evento-cal-link"
+         href="${this._esc(googleUrl)}"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="${i18n.eventos.anadirCalendario}">
+        <i class="bi bi-google" aria-hidden="true"></i>${i18n.eventos.anadirCalendario}
+      </a>
     `;
   },
 
@@ -873,86 +858,6 @@ const PublicoView = {
       location: evento.lugar || '',
     });
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  },
-
-  /**
-   * Escapa caracteres especiales de iCalendar (RFC 5545).
-   * @private
-   */
-  _escIcs(str) {
-    return String(str ?? '')
-      .replace(/\\/g, '\\\\')
-      .replace(/;/g, '\\;')
-      .replace(/,/g, '\\,')
-      .replace(/\r?\n/g, '\\n');
-  },
-
-  /**
-   * Genera el contenido .ics (VEVENT) del evento.
-   * @private
-   */
-  _buildIcs(evento) {
-    const { inicio, fin } = this._rangoEvento(evento);
-    const ahora = new Date();
-    return [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//JAL Comuna 3 Manrique//Eventos//ES',
-      'CALSCALE:GREGORIAN',
-      'BEGIN:VEVENT',
-      `UID:${evento.id || this._formatFechaCalendario(ahora)}@jal-comuna3`,
-      `DTSTAMP:${this._formatFechaCalendario(ahora)}`,
-      `DTSTART:${this._formatFechaCalendario(inicio)}`,
-      `DTEND:${this._formatFechaCalendario(fin)}`,
-      `SUMMARY:${this._escIcs(evento.titulo || 'Evento JAL Comuna 3')}`,
-      `DESCRIPTION:${this._escIcs(evento.descripcion || '')}`,
-      `LOCATION:${this._escIcs(evento.lugar || '')}`,
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
-  },
-
-  /**
-   * Dispara la descarga del archivo .ics en el dispositivo del usuario.
-   * @private
-   */
-  _descargarIcs(contenido, nombreArchivo) {
-    const blob = new Blob([contenido], { type: 'text/calendar;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = nombreArchivo;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  },
-
-  /**
-   * Sanitiza un texto para usarlo como nombre de archivo.
-   * @private
-   */
-  _sanitizarNombreArchivo(nombre) {
-    return String(nombre || 'JAL')
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 50);
-  },
-
-  /**
-   * Enlaza los botones de descarga .ics de las tarjetas de evento renderizadas.
-   * @private
-   */
-  _bindCalendario() {
-    document.querySelectorAll('.btn-ics-evento').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const evento = (this._eventosCalCache || []).find((e) => e.id === btn.dataset.eventoId);
-        if (!evento) return;
-        const nombre = `Evento_${this._sanitizarNombreArchivo(evento.titulo)}.ics`;
-        this._descargarIcs(this._buildIcs(evento), nombre);
-      });
-    });
   },
 
   /**
