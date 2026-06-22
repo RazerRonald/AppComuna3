@@ -41,7 +41,6 @@ export const i18n = {
     contacto:    'Contacto',
     miTramite:   'Trámites',
     panelAdmin:  'Panel Admin',
-    publicar:    'Publicar',
     cerrarSesion:'Cerrar Sesión',
     iniciarSesion:'Iniciar Sesión',
     perfil:      'Mi Perfil',

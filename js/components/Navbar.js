@@ -3,7 +3,7 @@
  * Renderiza diferentes navbars según el estado de sesión:
  * - Sin sesión: links públicos + botón de login
  * - Estudiante: + Mi Trámite + dropdown de perfil
- * - Edil: + Panel Admin + Publicar + dropdown de perfil
+ * - Edil: + Panel Admin + dropdown de perfil
  *
  * @module components/Navbar
  */
@@ -92,11 +92,6 @@ const Navbar = {
         <li class="nav-item">
           <a class="nav-link" href="#/admin" id="nav-admin" aria-label="Panel de administración">
             <i class="bi bi-speedometer2 me-1"></i>${i18n.nav.panelAdmin}
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#/publicar" id="nav-publicar" aria-label="Publicar noticia">
-            <i class="bi bi-plus-circle me-1"></i>${i18n.nav.publicar}
           </a>
         </li>
       `;
@@ -268,7 +263,6 @@ const Navbar = {
       '#/contacto':  'nav-contacto',
       '#/tramite':   'nav-tramite',
       '#/admin':     'nav-admin',
-      '#/publicar':  'nav-publicar',
     };
 
     // Buscar match parcial (para sub-rutas como #/noticias/abc123)
