@@ -134,7 +134,7 @@ export const i18n = {
     placeholderLugar:      'Dirección o lugar del evento',
     guardadoOk:      'Evento guardado correctamente.',
     eliminadoOk:     'Evento eliminado.',
-    anadirCalendario:'Añadir a Google Calendar',
+    anadirCalendario:'Google Calendar',
     errorGuardar:    'Error al guardar el evento.',
     errorEliminar:   'Error al eliminar el evento.',
     errorCarga:      'No se pudieron cargar los eventos.',
