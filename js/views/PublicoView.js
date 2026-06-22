@@ -40,6 +40,8 @@ const SLIDES_HERO = [
   },
 ];
 
+const EVENTOS_TIME_ZONE = 'America/Bogota';
+
 const PublicoView = {
   // ─── INICIO ──────────────────────────────────────────────────────────────
 
@@ -769,9 +771,9 @@ const PublicoView = {
    */
   _buildEventoCard(evento) {
     const fechaDate = evento.fecha?.toDate ? evento.fecha.toDate() : new Date(evento.fecha);
-    const dia       = fechaDate.getDate().toString().padStart(2, '0');
-    const mes       = fechaDate.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '');
-    const horaFmt   = fechaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const dia       = fechaDate.toLocaleDateString('es-CO', { day: '2-digit', timeZone: EVENTOS_TIME_ZONE });
+    const mes       = fechaDate.toLocaleDateString('es-CO', { month: 'short', timeZone: EVENTOS_TIME_ZONE }).replace('.', '');
+    const horaFmt   = fechaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: EVENTOS_TIME_ZONE });
     const titulo    = this._esc(evento.titulo);
     const lugar     = this._esc(evento.lugar);
     const descripcion = this._esc(evento.descripcion || '');
@@ -837,11 +839,26 @@ const PublicoView = {
   },
 
   /**
-   * Formatea una fecha al formato UTC de calendario (YYYYMMDDTHHMMSSZ).
+   * Formatea una fecha para Google Calendar en la zona horaria de Colombia.
    * @private
    */
   _formatFechaCalendario(date) {
-    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: EVENTOS_TIME_ZONE,
+      year:     'numeric',
+      month:    '2-digit',
+      day:      '2-digit',
+      hour:     '2-digit',
+      minute:   '2-digit',
+      second:   '2-digit',
+      hour12:   false,
+      hourCycle: 'h23',
+    }).formatToParts(date).reduce((acc, parte) => {
+      if (parte.type !== 'literal') acc[parte.type] = parte.value;
+      return acc;
+    }, {});
+
+    return `${partes.year}${partes.month}${partes.day}T${partes.hour}${partes.minute}${partes.second}`;
   },
 
   /**
@@ -856,6 +873,7 @@ const PublicoView = {
       dates:    `${this._formatFechaCalendario(inicio)}/${this._formatFechaCalendario(fin)}`,
       details:  evento.descripcion || '',
       location: evento.lugar || '',
+      ctz:      EVENTOS_TIME_ZONE,
     });
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   },
