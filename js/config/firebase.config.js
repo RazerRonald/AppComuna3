@@ -115,7 +115,7 @@ import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // ─── ⚠️ REEMPLAZA ESTOS VALORES CON TU CONFIGURACIÓN REAL DE FIREBASE ───────
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyD_1bLYxGLrIngn6K2rexgHg4EijOAeOig",
   authDomain: "jal3-fd8a2.firebaseapp.com",
   projectId: "jal3-fd8a2",

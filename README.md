@@ -81,6 +81,13 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 5. El Edil expide la finalizacion; el estudiante solo ve el aviso para recogerla.
 6. Las cartas se guardan en Drive dentro de una subcarpeta por estudiante.
 
+### Creacion de estudiantes por Edil
+
+1. El Edil entra al Panel Admin y abre `Crear Estudiantes`.
+2. El formulario crea la cuenta en Firebase Auth usando una instancia secundaria, para no cambiar la sesion activa del Edil.
+3. Firestore guarda `users/{uid}` con `rol: estudiante`.
+4. Las reglas no permiten crear usuarios con rol Edil desde este flujo.
+
 ## Checklist antes de despliegue final
 
 - Publicar `firestore.rules` si fueron modificadas.
@@ -97,4 +104,4 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 - Expedir carta inicial como Edil.
 - Solicitar y expedir carta de finalizacion.
 - Confirmar que el estudiante no puede ver enlaces de cartas aprobadas.
-
+- Crear un usuario estudiante desde Panel Admin y confirmar que el Edil no pierde la sesion.

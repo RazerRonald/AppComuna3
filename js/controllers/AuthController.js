@@ -12,6 +12,52 @@ import { i18n }  from '../config/i18n.js';
 
 const AuthController = {
   /**
+   * Crea un nuevo usuario estudiante desde el Panel Admin.
+   *
+   * @param {Object} datos
+   * @param {Object} callbacks
+   * @returns {Promise<void>}
+   */
+  async crearEstudiante(datos, { onLoading, onSuccess, onError }) {
+    const datosLimpios = {
+      nombre: String(datos?.nombre || '').trim(),
+      email: String(datos?.email || '').trim().toLowerCase(),
+      password: String(datos?.password || ''),
+      confirmarPassword: String(datos?.confirmarPassword || ''),
+    };
+
+    if (!datosLimpios.nombre || !datosLimpios.email || !datosLimpios.password || !datosLimpios.confirmarPassword) {
+      onError(i18n.admin.usuariosCamposRequeridos);
+      return;
+    }
+
+    if (datosLimpios.password.length < 6) {
+      onError(i18n.admin.usuariosPasswordCorta);
+      return;
+    }
+
+    if (datosLimpios.password !== datosLimpios.confirmarPassword) {
+      onError(i18n.admin.usuariosPasswordNoCoincide);
+      return;
+    }
+
+    onLoading(true);
+    try {
+      const estudiante = await AuthModel.crearEstudiantePorEdil({
+        nombre: datosLimpios.nombre,
+        email: datosLimpios.email,
+        password: datosLimpios.password,
+      });
+      onSuccess(estudiante);
+    } catch (err) {
+      console.error('[AuthController.crearEstudiante]', err);
+      onError(this._mapearErrorFirebase(err.code || err.message));
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
    * Procesa el intento de inicio de sesión del usuario.
    * Valida los campos, llama al AuthModel y maneja el resultado.
    *
@@ -109,6 +155,11 @@ const AuthController = {
       'auth/user-not-found':         i18n.auth.errorCredenciales,
       'auth/wrong-password':         i18n.auth.errorCredenciales,
       'auth/invalid-email':          'El formato del correo no es válido.',
+      'auth/email-already-in-use':   i18n.admin.usuariosEmailExiste,
+      'auth/weak-password':          i18n.admin.usuariosPasswordCorta,
+      'auth/operation-not-allowed':  'El proveedor Email/Password no esta habilitado en Firebase Auth.',
+      'auth/unauthorized':           i18n.auth.accesoDenegado,
+      'permission-denied':           i18n.admin.usuariosErrorPermisos,
       'auth/user-disabled':          'Esta cuenta ha sido desactivada.',
       'auth/too-many-requests':      'Demasiados intentos. Espera unos minutos.',
       'auth/network-request-failed': i18n.auth.errorRed,

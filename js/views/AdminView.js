@@ -10,6 +10,7 @@
 import NoticiaController  from '../controllers/NoticiaController.js';
 import EventoController   from '../controllers/EventoController.js';
 import ArchivoController  from '../controllers/ArchivoController.js';
+import AuthController     from '../controllers/AuthController.js';
 import AuthModel          from '../models/AuthModel.js';
 import Toast              from '../components/Toast.js';
 import { i18n }           from '../config/i18n.js';
@@ -90,7 +91,7 @@ const AdminView = {
           <i class="bi bi-lightning-fill text-warning me-2"></i>Accesos Rápidos
         </h2>
         <div class="row g-4">
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-noticias"
@@ -105,7 +106,7 @@ const AdminView = {
               </div>
             </button>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-eventos"
@@ -120,7 +121,7 @@ const AdminView = {
               </div>
             </button>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-tramites"
@@ -135,6 +136,21 @@ const AdminView = {
               </div>
             </button>
           </div>
+          <div class="col-md-6 col-xl-3">
+            <button class="btn w-100 p-4 text-start form-jal"
+                    style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
+                    id="btn-admin-usuarios"
+                    aria-label="${i18n.admin.gestionUsuarios}">
+              <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon stat-icon-primary"><i class="bi bi-person-plus fs-4"></i></div>
+                <div>
+                  <div class="fw-700">${i18n.admin.gestionUsuarios}</div>
+                  <div class="text-muted small">${i18n.admin.gestionUsuariosSub}</div>
+                </div>
+                <i class="bi bi-arrow-right ms-auto text-primary"></i>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -146,9 +162,137 @@ const AdminView = {
     document.getElementById('btn-admin-noticias')?.addEventListener('click', () => this.renderNoticias());
     document.getElementById('btn-admin-eventos')?.addEventListener('click',  () => this.renderEventos());
     document.getElementById('btn-admin-tramites')?.addEventListener('click', () => this.renderTramites());
+    document.getElementById('btn-admin-usuarios')?.addEventListener('click', () => this.renderUsuarios());
 
     // Suscribir contadores en tiempo real
     this._iniciarContadores();
+  },
+
+  /**
+   * Renderiza el formulario de creacion de usuarios estudiantes.
+   *
+   * @returns {void}
+   */
+  renderUsuarios() {
+    const root = document.getElementById('app-root');
+    if (!root) return;
+
+    this._limpiarUnsubs();
+
+    root.innerHTML = `
+      <div class="page-hero">
+        <div class="container">
+          <nav aria-label="breadcrumb" class="page-hero-breadcrumb mb-2">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="#/admin" class="text-white-50">Admin</a></li>
+              <li class="breadcrumb-item active">${i18n.admin.gestionUsuarios}</li>
+            </ol>
+          </nav>
+          <h1><i class="bi bi-person-plus me-2"></i>${i18n.admin.usuariosTitulo}</h1>
+          <p class="page-hero-sub">${i18n.admin.usuariosSub}</p>
+        </div>
+      </div>
+
+      <div class="container py-5">
+        <div class="mb-4">
+          <button class="btn-jal-secondary" id="btn-volver-dashboard-usuarios" aria-label="Volver al dashboard">
+            <i class="bi bi-arrow-left me-1"></i> Panel Admin
+          </button>
+        </div>
+
+        <div class="form-jal">
+          <form id="form-crear-estudiante" novalidate autocomplete="off">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="usuario-nombre" class="form-label">${i18n.admin.usuariosNombre} *</label>
+                <input type="text"
+                       id="usuario-nombre"
+                       class="form-control"
+                       placeholder="${i18n.admin.usuariosPlaceholderNombre}"
+                       maxlength="120"
+                       required />
+              </div>
+              <div class="col-md-6">
+                <label for="usuario-email" class="form-label">${i18n.admin.usuariosCorreo} *</label>
+                <input type="email"
+                       id="usuario-email"
+                       class="form-control"
+                       placeholder="${i18n.admin.usuariosPlaceholderCorreo}"
+                       autocomplete="off"
+                       maxlength="180"
+                       required />
+              </div>
+              <div class="col-md-6">
+                <label for="usuario-password" class="form-label">${i18n.admin.usuariosPassword} *</label>
+                <input type="password"
+                       id="usuario-password"
+                       class="form-control"
+                       autocomplete="new-password"
+                       minlength="6"
+                       required />
+                <div class="form-text">${i18n.admin.usuariosAyudaPassword}</div>
+              </div>
+              <div class="col-md-6">
+                <label for="usuario-password-confirm" class="form-label">${i18n.admin.usuariosConfirmarPassword} *</label>
+                <input type="password"
+                       id="usuario-password-confirm"
+                       class="form-control"
+                       autocomplete="new-password"
+                       minlength="6"
+                       required />
+              </div>
+            </div>
+
+            <div id="form-usuario-error" class="alert alert-danger d-none mt-3" role="alert"></div>
+
+            <div class="d-flex gap-2 mt-4 flex-wrap">
+              <button type="submit" class="btn-jal-primary" id="btn-crear-estudiante">
+                <span id="btn-crear-estudiante-text">
+                  <i class="bi bi-person-plus me-1"></i>${i18n.admin.usuariosCrear}
+                </span>
+                <span id="btn-crear-estudiante-loading" class="d-none">
+                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>${i18n.app.guardando}
+                </span>
+              </button>
+              <button type="button" class="btn-jal-secondary" id="btn-limpiar-usuario">${i18n.app.limpiar}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      ${this._buildModalConfirmacion()}
+    `;
+
+    document.getElementById('btn-volver-dashboard-usuarios')?.addEventListener('click', () => this.renderDashboard());
+    document.getElementById('btn-limpiar-usuario')?.addEventListener('click', () => {
+      document.getElementById('form-crear-estudiante')?.reset();
+      document.getElementById('form-usuario-error')?.classList.add('d-none');
+    });
+
+    document.getElementById('form-crear-estudiante')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('form-usuario-error');
+      errorEl?.classList.add('d-none');
+
+      await AuthController.crearEstudiante({
+        nombre: document.getElementById('usuario-nombre')?.value,
+        email: document.getElementById('usuario-email')?.value,
+        password: document.getElementById('usuario-password')?.value,
+        confirmarPassword: document.getElementById('usuario-password-confirm')?.value,
+      }, {
+        onLoading: (v) => this._setFormLoading('btn-crear-estudiante', v),
+        onSuccess: () => {
+          Toast.exito(i18n.admin.usuariosCreadoOk);
+          document.getElementById('form-crear-estudiante')?.reset();
+        },
+        onError: (msg) => {
+          if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.classList.remove('d-none');
+          }
+        },
+      });
+    });
   },
 
   /**

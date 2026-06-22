@@ -231,6 +231,37 @@ service cloud.firestore {
         && data.fecha_fin > data.fecha;
     }
 
+    function camposUsuario() {
+      return [
+        'uid',
+        'email',
+        'nombre',
+        'rol',
+        'creadoEn',
+        'creadoPor'
+      ];
+    }
+
+    function camposBaseUsuario() {
+      return [
+        'uid',
+        'email',
+        'nombre',
+        'rol',
+        'creadoEn'
+      ];
+    }
+
+    function usuarioEstudianteValido(data, userId) {
+      return data.keys().hasOnly(camposUsuario())
+        && data.keys().hasAll(camposBaseUsuario())
+        && data.uid == userId
+        && stringNoVacio(data.email, 180)
+        && stringNoVacio(data.nombre, 120)
+        && data.rol == 'estudiante'
+        && data.creadoEn == request.time;
+    }
+
     match /noticias/{noticiaId} {
       allow read: if true;
 
@@ -317,8 +348,18 @@ service cloud.firestore {
         && (request.auth.uid == userId || esEdil());
 
       allow create: if autenticado()
-        && request.auth.uid == userId
-        && request.resource.data.rol == 'estudiante';
+        && usuarioEstudianteValido(request.resource.data, userId)
+        && (
+          (
+            request.auth.uid == userId
+            && !request.resource.data.keys().hasAny(['creadoPor'])
+          )
+          || (
+            esEdil()
+            && request.auth.uid != userId
+            && request.resource.data.creadoPor == request.auth.uid
+          )
+        );
 
       allow update, delete: if esEdil();
     }

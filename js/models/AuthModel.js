@@ -6,9 +6,18 @@
  * @module models/AuthModel
  */
 
-import { auth, db }                            from '../config/firebase.config.js';
+import { firebaseConfig, auth, db }            from '../config/firebase.config.js';
 import { COL_USERS, ROLES }                    from '../config/collections.js';
 import {
+  initializeApp,
+  deleteApp,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  getAuth,
+  inMemoryPersistence,
+  setPersistence,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
@@ -35,6 +44,71 @@ import {
 let _sesionActual = null;
 
 const AuthModel = {
+  /**
+   * Crea una cuenta de estudiante sin cambiar la sesion principal del Edil.
+   *
+   * @param {Object} datos
+   * @param {string} datos.nombre
+   * @param {string} datos.email
+   * @param {string} datos.password
+   * @returns {Promise<SesionUsuario>}
+   */
+  async crearEstudiantePorEdil({ nombre, email, password }) {
+    const sesionEdil = this.getSesion();
+    if (!sesionEdil || sesionEdil.rol !== ROLES.EDIL) {
+      throw new Error('auth/unauthorized');
+    }
+
+    const appName = `student-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const secondaryApp = initializeApp(firebaseConfig, appName);
+    const secondaryAuth = getAuth(secondaryApp);
+    await setPersistence(secondaryAuth, inMemoryPersistence);
+    let usuarioCreado = null;
+    let perfilCreado = false;
+
+    try {
+      const credencial = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        email,
+        password,
+      );
+      usuarioCreado = credencial.user;
+
+      await setDoc(doc(db, COL_USERS, usuarioCreado.uid), {
+        uid:       usuarioCreado.uid,
+        email,
+        nombre,
+        rol:       ROLES.ESTUDIANTE,
+        creadoEn:  serverTimestamp(),
+        creadoPor: sesionEdil.uid,
+      });
+      perfilCreado = true;
+
+      return {
+        uid: usuarioCreado.uid,
+        email,
+        nombre,
+        rol: ROLES.ESTUDIANTE,
+      };
+    } catch (err) {
+      if (usuarioCreado && !perfilCreado) {
+        try {
+          await deleteUser(usuarioCreado);
+        } catch (deleteErr) {
+          console.warn('[AuthModel.crearEstudiantePorEdil] No se pudo revertir usuario Auth incompleto', deleteErr);
+        }
+      }
+      throw err;
+    } finally {
+      try {
+        await signOut(secondaryAuth);
+      } catch (_) {}
+      try {
+        await deleteApp(secondaryApp);
+      } catch (_) {}
+    }
+  },
+
   /**
    * Inicia sesión con correo y contraseña usando Firebase Auth.
    * Después de autenticar, lee el documento `users/{uid}` de Firestore

@@ -61,6 +61,7 @@ const RUTAS = {
   '#/admin/noticias': { handler: () => AdminView.renderNoticias(),       rolRequerido: ROLES.EDIL        },
   '#/admin/eventos':  { handler: () => AdminView.renderEventos(),        rolRequerido: ROLES.EDIL        },
   '#/admin/tramites': { handler: () => AdminView.renderTramites(),       rolRequerido: ROLES.EDIL        },
+  '#/admin/usuarios': { handler: () => AdminView.renderUsuarios(),       rolRequerido: ROLES.EDIL        },
 };
 
 // ─── VISTA DE ERROR 404 ───────────────────────────────────────────────────
