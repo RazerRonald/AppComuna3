@@ -236,9 +236,15 @@ service cloud.firestore {
         'uid',
         'email',
         'nombre',
+        'primer_apellido',
+        'segundo_apellido',
+        'tipo_documento',
+        'numero_documento',
         'rol',
         'creadoEn',
-        'creadoPor'
+        'creadoPor',
+        'actualizadoEn',
+        'actualizadoPor'
       ];
     }
 
@@ -247,19 +253,65 @@ service cloud.firestore {
         'uid',
         'email',
         'nombre',
-        'rol',
-        'creadoEn'
+        'primer_apellido',
+        'segundo_apellido',
+        'tipo_documento',
+        'numero_documento',
+        'rol'
       ];
     }
 
-    function usuarioEstudianteValido(data, userId) {
+    function tipoDocumentoValido(tipo) {
+      return tipo == 'CC'
+        || tipo == 'CE'
+        || tipo == 'PPT'
+        || tipo == 'PA';
+    }
+
+    function rolUsuarioValido(rol) {
+      return rol == 'estudiante' || rol == 'edil';
+    }
+
+    function usuarioPerfilValido(data, userId) {
       return data.keys().hasOnly(camposUsuario())
         && data.keys().hasAll(camposBaseUsuario())
         && data.uid == userId
         && stringNoVacio(data.email, 180)
-        && stringNoVacio(data.nombre, 120)
+        && stringNoVacio(data.nombre, 80)
+        && stringNoVacio(data.primer_apellido, 80)
+        && stringNoVacio(data.segundo_apellido, 80)
+        && tipoDocumentoValido(data.tipo_documento)
+        && stringNoVacio(data.numero_documento, 30)
+        && rolUsuarioValido(data.rol);
+    }
+
+    function usuarioCreacionValida(data, userId) {
+      return usuarioPerfilValido(data, userId)
+        && data.creadoEn == request.time
+        && !data.keys().hasAny(['actualizadoEn', 'actualizadoPor']);
+    }
+
+    function usuarioAutoCreadoEstudianteValido(data, userId) {
+      return request.auth.uid == userId
         && data.rol == 'estudiante'
-        && data.creadoEn == request.time;
+        && !data.keys().hasAny(['creadoPor'])
+        && usuarioCreacionValida(data, userId);
+    }
+
+    function usuarioCreadoPorEdilValido(data, userId) {
+      return esEdil()
+        && request.auth.uid != userId
+        && data.creadoPor == request.auth.uid
+        && usuarioCreacionValida(data, userId);
+    }
+
+    function usuarioActualizacionValida(data, userId) {
+      return usuarioPerfilValido(data, userId)
+        && data.get('creadoEn', null) == resource.data.get('creadoEn', null)
+        && data.get('creadoPor', null) == resource.data.get('creadoPor', null)
+        && data.actualizadoEn == request.time
+        && data.actualizadoPor == request.auth.uid
+        && (request.auth.uid != userId || data.rol == 'edil');
     }
 
     match /noticias/{noticiaId} {
@@ -348,20 +400,16 @@ service cloud.firestore {
         && (request.auth.uid == userId || esEdil());
 
       allow create: if autenticado()
-        && usuarioEstudianteValido(request.resource.data, userId)
         && (
-          (
-            request.auth.uid == userId
-            && !request.resource.data.keys().hasAny(['creadoPor'])
-          )
-          || (
-            esEdil()
-            && request.auth.uid != userId
-            && request.resource.data.creadoPor == request.auth.uid
-          )
+          usuarioAutoCreadoEstudianteValido(request.resource.data, userId)
+          || usuarioCreadoPorEdilValido(request.resource.data, userId)
         );
 
-      allow update, delete: if esEdil();
+      allow update: if esEdil()
+        && usuarioActualizacionValida(request.resource.data, userId);
+
+      allow delete: if esEdil()
+        && request.auth.uid != userId;
     }
   }
 }

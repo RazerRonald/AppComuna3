@@ -26,6 +26,7 @@ import LoginView        from './views/LoginView.js';
 import PublicoView      from './views/PublicoView.js';
 import EstudianteView   from './views/EstudianteView.js';
 import AdminView        from './views/AdminView.js';
+import PerfilView       from './views/PerfilView.js';
 
 import { ROLES }        from './config/collections.js';
 import { i18n }         from './config/i18n.js';
@@ -56,6 +57,7 @@ const RUTAS = {
   '#/contacto': { handler: () => PublicoView.renderContacto(),           rolRequerido: null              },
   '#/tramite':  { handler: () => EstudianteView.renderHistorial(),       rolRequerido: ROLES.ESTUDIANTE  },
   '#/tramite/nueva': { handler: () => EstudianteView.renderFormulario(), rolRequerido: ROLES.ESTUDIANTE  },
+  '#/perfil':   { handler: () => PerfilView.render(),                    rolRequerido: [ROLES.ESTUDIANTE, ROLES.EDIL] },
   '#/admin':    { handler: () => AdminView.renderDashboard(),            rolRequerido: ROLES.EDIL        },
   '#/publicar': { handler: () => AdminView.renderNoticias(),             rolRequerido: ROLES.EDIL        },
   '#/admin/noticias': { handler: () => AdminView.renderNoticias(),       rolRequerido: ROLES.EDIL        },
@@ -149,7 +151,9 @@ async function procesarRuta() {
       return;
     }
 
-    const tienePermiso = sesion.rol === rolRequerido;
+    const tienePermiso = Array.isArray(rolRequerido)
+      ? rolRequerido.includes(sesion.rol)
+      : sesion.rol === rolRequerido;
 
     if (!tienePermiso) {
       actualizarNavbar(hash);

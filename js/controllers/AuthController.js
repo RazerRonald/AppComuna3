@@ -1,56 +1,58 @@
 /**
- * @fileoverview AuthController — Orquesta autenticación entre AuthModel y vistas.
- * Recibe eventos del LoginView, llama a AuthModel y actualiza la vista con el resultado.
- * No toca Firebase directamente; no renderiza HTML.
+ * @fileoverview AuthController - Orquesta autenticacion y perfiles.
+ *
+ * Recibe eventos de vistas, valida datos, llama a AuthModel y devuelve
+ * mensajes amigables. No toca Firebase directamente ni renderiza HTML.
  *
  * @module controllers/AuthController
  */
 
 import AuthModel from '../models/AuthModel.js';
-import { ROLES } from '../config/collections.js';
-import { i18n }  from '../config/i18n.js';
+import { ROLES, TIPOS_DOCUMENTO } from '../config/collections.js';
+import { i18n } from '../config/i18n.js';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const AuthController = {
   /**
-   * Crea un nuevo usuario estudiante desde el Panel Admin.
+   * Wrapper compatible con el flujo anterior de crear estudiantes.
+   */
+  async crearEstudiante(datos, callbacks) {
+    return this.crearUsuario({ ...datos, rol: ROLES.ESTUDIANTE }, callbacks);
+  },
+
+  /**
+   * Crea un usuario estudiante o Edil desde el Panel Admin.
    *
    * @param {Object} datos
    * @param {Object} callbacks
    * @returns {Promise<void>}
    */
-  async crearEstudiante(datos, { onLoading, onSuccess, onError }) {
-    const datosLimpios = {
-      nombre: String(datos?.nombre || '').trim(),
-      email: String(datos?.email || '').trim().toLowerCase(),
-      password: String(datos?.password || ''),
-      confirmarPassword: String(datos?.confirmarPassword || ''),
-    };
-
-    if (!datosLimpios.nombre || !datosLimpios.email || !datosLimpios.password || !datosLimpios.confirmarPassword) {
-      onError(i18n.admin.usuariosCamposRequeridos);
+  async crearUsuario(datos, { onLoading, onSuccess, onError }) {
+    const datosLimpios = this._normalizarDatosUsuario(datos);
+    const errorPerfil = this._validarPerfil(datosLimpios);
+    if (errorPerfil) {
+      onError(errorPerfil);
       return;
     }
 
-    if (datosLimpios.password.length < 6) {
-      onError(i18n.admin.usuariosPasswordCorta);
-      return;
-    }
-
-    if (datosLimpios.password !== datosLimpios.confirmarPassword) {
-      onError(i18n.admin.usuariosPasswordNoCoincide);
+    const password = String(datos?.password || '');
+    const confirmarPassword = String(datos?.confirmarPassword || '');
+    const errorPassword = this._validarPasswordCreacion(password, confirmarPassword);
+    if (errorPassword) {
+      onError(errorPassword);
       return;
     }
 
     onLoading(true);
     try {
-      const estudiante = await AuthModel.crearEstudiantePorEdil({
-        nombre: datosLimpios.nombre,
-        email: datosLimpios.email,
-        password: datosLimpios.password,
+      const usuario = await AuthModel.crearUsuarioPorEdil({
+        ...datosLimpios,
+        password,
       });
-      onSuccess(estudiante);
+      onSuccess(usuario);
     } catch (err) {
-      console.error('[AuthController.crearEstudiante]', err);
+      console.error('[AuthController.crearUsuario]', err);
       onError(this._mapearErrorFirebase(err.code || err.message));
     } finally {
       onLoading(false);
@@ -58,16 +60,83 @@ const AuthController = {
   },
 
   /**
-   * Procesa el intento de inicio de sesión del usuario.
-   * Valida los campos, llama al AuthModel y maneja el resultado.
+   * Lista usuarios para vistas administrativas.
+   */
+  async listarUsuarios({ onLoading, onSuccess, onError }) {
+    onLoading(true);
+    try {
+      onSuccess(await AuthModel.listarUsuarios());
+    } catch (err) {
+      console.error('[AuthController.listarUsuarios]', err);
+      onError(this._mapearErrorFirebase(err.code || err.message));
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
+   * Suscribe usuarios en tiempo real.
    *
-   * @param {string}   email      - Correo electrónico ingresado
-   * @param {string}   password   - Contraseña ingresada
-   * @param {Object}   callbacks  - Funciones de callback para actualizar la vista
-   * @param {function} callbacks.onLoading  - Llamada al iniciar la carga (bool)
-   * @param {function} callbacks.onSuccess  - Llamada con { sesion } al autenticar
-   * @param {function} callbacks.onError    - Llamada con mensaje de error (string)
+   * @param {function(Object[]): void} onSuccess
+   * @param {function(string): void} onError
+   * @returns {function}
+   */
+  suscribirUsuarios(onSuccess, onError) {
+    return AuthModel.suscribirUsuarios(
+      onSuccess,
+      (err) => {
+        console.error('[AuthController.suscribirUsuarios]', err);
+        onError(this._mapearErrorFirebase(err.code || err.message));
+      },
+    );
+  },
+
+  /**
+   * Actualiza un usuario existente desde el Panel Admin.
+   *
+   * @param {string} uid
+   * @param {Object} datos
+   * @param {Object} usuarioActual
+   * @param {Object} callbacks
    * @returns {Promise<void>}
+   */
+  async actualizarUsuario(uid, datos, usuarioActual, { onLoading, onSuccess, onError }) {
+    const datosLimpios = this._normalizarDatosUsuario(datos);
+    const errorPerfil = this._validarPerfil(datosLimpios);
+    if (errorPerfil) {
+      onError(errorPerfil);
+      return;
+    }
+
+    const password = String(datos?.password || '');
+    const confirmarPassword = String(datos?.confirmarPassword || '');
+    const errorPassword = this._validarPasswordEdicion(password, confirmarPassword);
+    if (errorPassword) {
+      onError(errorPassword);
+      return;
+    }
+
+    onLoading(true);
+    try {
+      const usuario = await AuthModel.actualizarUsuarioPorEdil(
+        uid,
+        {
+          ...datosLimpios,
+          password,
+        },
+        usuarioActual,
+      );
+      onSuccess(usuario);
+    } catch (err) {
+      console.error('[AuthController.actualizarUsuario]', err);
+      onError(this._mapearErrorFirebase(err.code || err.message));
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
+   * Procesa el intento de inicio de sesion.
    */
   async login(email, password, { onLoading, onSuccess, onError }) {
     if (!email?.trim() || !password?.trim()) {
@@ -76,26 +145,19 @@ const AuthController = {
     }
 
     onLoading(true);
-
     try {
       const sesion = await AuthModel.login(email.trim(), password);
       onSuccess(sesion);
     } catch (err) {
       console.error('[AuthController.login]', err);
-      const mensaje = this._mapearErrorFirebase(err.code);
-      onError(mensaje);
+      onError(this._mapearErrorFirebase(err.code));
     } finally {
       onLoading(false);
     }
   },
 
   /**
-   * Cierra la sesión del usuario y redirige al login.
-   *
-   * @param {Object}   callbacks
-   * @param {function} callbacks.onSuccess - Llamada al cerrar sesión
-   * @param {function} callbacks.onError   - Llamada si ocurre un error
-   * @returns {Promise<void>}
+   * Cierra la sesion del usuario.
    */
   async logout({ onSuccess, onError }) {
     try {
@@ -107,32 +169,14 @@ const AuthController = {
     }
   },
 
-  /**
-   * Inicia el listener de estado de autenticación de Firebase.
-   * Debe llamarse al arrancar la app para restaurar sesiones activas.
-   *
-   * @param {function(import('../models/AuthModel.js').SesionUsuario|null): void} onCambio
-   * @returns {function} Función unsubscribe
-   */
   iniciarListener(onCambio) {
     return AuthModel.onAuthChange(onCambio);
   },
 
-  /**
-   * Retorna la sesión activa en memoria.
-   *
-   * @returns {import('../models/AuthModel.js').SesionUsuario|null}
-   */
   getSesion() {
     return AuthModel.getSesion();
   },
 
-  /**
-   * Determina la ruta de redirección según el rol del usuario.
-   *
-   * @param {string} rol - Rol del usuario (usar constantes ROLES)
-   * @returns {string} Hash de la ruta de destino
-   */
   getRutaPorRol(rol) {
     switch (rol) {
       case ROLES.EDIL:       return '#/admin';
@@ -141,28 +185,110 @@ const AuthController = {
     }
   },
 
-  // ─── Privado: mapear códigos de error de Firebase a mensajes amigables ─
-  /**
-   * Mapea códigos de error de Firebase Auth a mensajes en español.
-   *
-   * @private
-   * @param {string} codigo - Código de error de Firebase (ej: 'auth/wrong-password')
-   * @returns {string} Mensaje de error legible
-   */
+  _normalizarDatosUsuario(datos = {}) {
+    return {
+      rol: this._normalizarRol(datos.rol),
+      email: String(datos.email || '').trim().toLowerCase(),
+      nombre: String(datos.nombre || '').trim().replace(/\s+/g, ' '),
+      primer_apellido: String(datos.primer_apellido || '').trim().replace(/\s+/g, ' '),
+      segundo_apellido: String(datos.segundo_apellido || '').trim().replace(/\s+/g, ' '),
+      tipo_documento: String(datos.tipo_documento || '').trim().toUpperCase(),
+      numero_documento: String(datos.numero_documento || '').trim().replace(/\s+/g, ''),
+    };
+  },
+
+  _validarPerfil(datos) {
+    const requeridos = [
+      'email',
+      'nombre',
+      'primer_apellido',
+      'segundo_apellido',
+      'tipo_documento',
+      'numero_documento',
+    ];
+
+    if (requeridos.some((campo) => !datos[campo])) {
+      return i18n.admin.usuariosCamposRequeridos;
+    }
+
+    if (!EMAIL_RE.test(datos.email)) {
+      return i18n.admin.usuariosEmailInvalido;
+    }
+
+    if (!TIPOS_DOCUMENTO.includes(datos.tipo_documento)) {
+      return i18n.admin.usuariosTipoDocInvalido;
+    }
+
+    if (datos.numero_documento.length < 4 || datos.numero_documento.length > 30) {
+      return i18n.admin.usuariosNumeroDocInvalido;
+    }
+
+    if (![ROLES.ESTUDIANTE, ROLES.EDIL].includes(datos.rol)) {
+      return i18n.auth.accesoDenegado;
+    }
+
+    return null;
+  },
+
+  _validarPasswordCreacion(password, confirmarPassword) {
+    if (!password || !confirmarPassword) {
+      return i18n.admin.usuariosCamposRequeridos;
+    }
+
+    if (password.length < 6) {
+      return i18n.admin.usuariosPasswordCorta;
+    }
+
+    if (password !== confirmarPassword) {
+      return i18n.admin.usuariosPasswordNoCoincide;
+    }
+
+    return null;
+  },
+
+  _validarPasswordEdicion(password, confirmarPassword) {
+    if (!password && !confirmarPassword) return null;
+
+    if (password.length < 6) {
+      return i18n.admin.usuariosPasswordCorta;
+    }
+
+    if (password !== confirmarPassword) {
+      return i18n.admin.usuariosPasswordNoCoincide;
+    }
+
+    return null;
+  },
+
+  _normalizarRol(rol) {
+    return rol === ROLES.EDIL ? ROLES.EDIL : ROLES.ESTUDIANTE;
+  },
+
   _mapearErrorFirebase(codigo) {
     const mapa = {
       'auth/invalid-credential':     i18n.auth.errorCredenciales,
       'auth/user-not-found':         i18n.auth.errorCredenciales,
       'auth/wrong-password':         i18n.auth.errorCredenciales,
-      'auth/invalid-email':          'El formato del correo no es válido.',
+      'auth/invalid-email':          i18n.admin.usuariosEmailInvalido,
       'auth/email-already-in-use':   i18n.admin.usuariosEmailExiste,
       'auth/weak-password':          i18n.admin.usuariosPasswordCorta,
       'auth/operation-not-allowed':  'El proveedor Email/Password no esta habilitado en Firebase Auth.',
       'auth/unauthorized':           i18n.auth.accesoDenegado,
-      'permission-denied':           i18n.admin.usuariosErrorPermisos,
+      'auth/no-self-demote':         i18n.admin.usuariosNoAutoCambioRol,
       'auth/user-disabled':          'Esta cuenta ha sido desactivada.',
       'auth/too-many-requests':      'Demasiados intentos. Espera unos minutos.',
       'auth/network-request-failed': i18n.auth.errorRed,
+      'profile/not-found':           i18n.auth.errorPerfilNoEncontrado || 'Tu cuenta no tiene un perfil registrado. Solicita al Edil administrador que complete tu perfil.',
+      'permission-denied':           i18n.admin.usuariosErrorPermisos,
+      'api/backend-unavailable':     i18n.admin.usuariosBackendNoDisponible,
+      'api/404':                     i18n.admin.usuariosBackendNoDisponible,
+      'api/405':                     i18n.admin.usuariosBackendNoDisponible,
+      'api/501':                     i18n.admin.usuariosBackendNoDisponible,
+      'method-not-allowed':          i18n.admin.usuariosBackendNoDisponible,
+      'api/admin-config-missing':    i18n.admin.usuariosBackendConfig,
+      'EMAIL_EXISTS':                i18n.admin.usuariosEmailExiste,
+      'INVALID_EMAIL':               i18n.admin.usuariosEmailInvalido,
+      'WEAK_PASSWORD':               i18n.admin.usuariosPasswordCorta,
     };
     return mapa[codigo] || i18n.auth.errorGenerico;
   },

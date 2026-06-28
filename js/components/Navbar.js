@@ -179,6 +179,11 @@ const Navbar = {
             </span>
           </li>
           <li><hr class="dropdown-divider" style="border-color:rgba(255,255,255,.1);margin:0.25rem 0;"></li>
+          <li>
+            <a class="dropdown-item" href="#/perfil" id="dropdown-perfil-link">
+              <i class="bi bi-person-circle me-2"></i>${i18n.nav.perfil}
+            </a>
+          </li>
           ${tipo === 'edil' ? `
           <li>
             <a class="dropdown-item" href="#/admin" id="dropdown-admin">

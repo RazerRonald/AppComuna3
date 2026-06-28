@@ -1,24 +1,24 @@
 /**
- * @fileoverview Nombres centralizados de colecciones de Firestore.
- * Usar siempre estas constantes en lugar de strings literales para evitar
- * errores tipográficos y facilitar refactorizaciones futuras.
+ * @fileoverview Nombres centralizados de colecciones y constantes de dominio.
+ *
+ * Usar estas constantes evita strings duplicados en modelos, vistas y reglas.
  *
  * @module config/collections
  */
 
-/** Colección de usuarios (perfiles y roles) */
+/** Coleccion de usuarios (perfiles y roles). */
 export const COL_USERS = 'users';
 
-/** Colección de noticias de la JAL */
+/** Coleccion de noticias de la JAL. */
 export const COL_NOTICIAS = 'noticias';
 
-/** Colección de eventos de la JAL */
+/** Coleccion de eventos de la JAL. */
 export const COL_EVENTOS = 'eventos';
 
-/** Colección de trámites / info carta inicial estudiantiles */
+/** Coleccion de tramites / info carta inicial estudiantiles. */
 export const COL_ARCHIVOS = 'info_carta_inicial';
 
-/** Colección privada con IDs y enlaces de cartas expedidas. Solo Edil. */
+/** Coleccion privada con IDs y enlaces de cartas expedidas. Solo Edil. */
 export const COL_DOCUMENTOS_CARTAS = 'info_carta_documentos';
 
 /**
@@ -26,16 +26,19 @@ export const COL_DOCUMENTOS_CARTAS = 'info_carta_documentos';
  * Deben coincidir exactamente con el valor del campo `rol` en Firestore.
  */
 export const ROLES = {
-  /** Edil de la JAL — acceso total */
+  /** Edil de la JAL - acceso total. */
   EDIL:       'edil',
-  /** Estudiante — gestiona su propio trámite */
+  /** Estudiante - gestiona su propio tramite. */
   ESTUDIANTE: 'estudiante',
-  /** Público general — solo lectura (sin sesión) */
+  /** Publico general - solo lectura (sin sesion). */
   PUBLICO:    'publico',
 };
 
+/** Tipos de documento permitidos para perfiles de usuarios. */
+export const TIPOS_DOCUMENTO = ['CC', 'CE', 'PPT', 'PA'];
+
 /**
- * Estados posibles de un trámite estudiantil.
+ * Estados posibles de un tramite estudiantil.
  */
 export const ESTADOS_TRAMITE = {
   PENDIENTE: 'Pendiente',

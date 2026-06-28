@@ -463,23 +463,21 @@ const EstudianteView = {
               <label for="carta-nombre" class="form-label">${i18n.tramite.campoNombre} *</label>
               <input type="text" id="carta-nombre" name="nombre_completo" class="form-control"
                      placeholder="${i18n.tramite.placeholderNombre}"
-                     required maxlength="120" />
+                     value="${this._esc(sesion?.nombre || '')}"
+                     required maxlength="120" readonly />
             </div>
             <div class="col-md-6">
               <label for="carta-tipo-doc" class="form-label">${i18n.tramite.campoTipoDoc} *</label>
-              <select id="carta-tipo-doc" name="tipo_documento" class="form-select" required>
-                <option value="">Seleccionar...</option>
-                <option value="${i18n.tramite.tipoCC}">${i18n.tramite.tipoCC}</option>
-                <option value="${i18n.tramite.tipoTI}">${i18n.tramite.tipoTI}</option>
-                <option value="${i18n.tramite.tipoCE}">${i18n.tramite.tipoCE}</option>
-                <option value="${i18n.tramite.tipoPPT}">${i18n.tramite.tipoPPT}</option>
-                <option value="${i18n.tramite.tipoPA}">${i18n.tramite.tipoPA}</option>
-              </select>
+              <input type="text" id="carta-tipo-doc" class="form-control"
+                     value="${this._esc(sesion?.tipo_documento || '')}" required readonly />
+              <input type="hidden" name="tipo_documento" value="${this._esc(sesion?.tipo_documento || '')}" />
             </div>
             <div class="col-md-6">
               <label for="carta-numero-doc" class="form-label">${i18n.tramite.campoNumeroDoc} *</label>
               <input type="text" id="carta-numero-doc" name="numero_documento" class="form-control"
-                     placeholder="${i18n.tramite.placeholderNumero}" required maxlength="20" />
+                     placeholder="${i18n.tramite.placeholderNumero}"
+                     value="${this._esc(sesion?.numero_documento || '')}"
+                     required maxlength="30" readonly />
             </div>
             <div class="col-md-6">
               <label for="carta-ciudad-doc" class="form-label">${i18n.tramite.campoCiudadDoc} *</label>

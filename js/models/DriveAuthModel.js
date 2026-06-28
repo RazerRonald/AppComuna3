@@ -39,7 +39,6 @@ const DriveAuthModel = {
         window.gapi.load('client', async () => {
           try {
             await window.gapi.client.init({
-              apiKey: DRIVE_CONFIG.API_KEY,
               discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
             });
 
