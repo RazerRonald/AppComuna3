@@ -85,6 +85,7 @@ function normalizarPerfil(perfil = {}, uid) {
     segundo_apellido: String(perfil.segundo_apellido || '').trim().replace(/\s+/g, ' '),
     tipo_documento: String(perfil.tipo_documento || '').trim().toUpperCase(),
     numero_documento: String(perfil.numero_documento || '').trim().replace(/\s+/g, ''),
+    ciudad_documento: String(perfil.ciudad_documento || '').trim().replace(/\s+/g, ' '),
     rol: perfil.rol === 'edil' ? 'edil' : 'estudiante',
   };
 }
@@ -97,6 +98,7 @@ function validarPerfil(perfil) {
     'segundo_apellido',
     'tipo_documento',
     'numero_documento',
+    'ciudad_documento',
     'rol',
   ];
 
@@ -114,6 +116,10 @@ function validarPerfil(perfil) {
 
   if (perfil.numero_documento.length < 4 || perfil.numero_documento.length > 30) {
     return 'Numero de documento invalido';
+  }
+
+  if (perfil.ciudad_documento.length > 80) {
+    return 'Ciudad de expedicion invalida';
   }
 
   if (!ROLES.includes(perfil.rol)) {
@@ -266,23 +272,28 @@ function toFirestoreFields(data) {
   return fields;
 }
 
-async function patchUserProfile(uid, perfil, callerUid, accessToken) {
+async function replaceUserProfile(uid, perfil, callerUid, accessToken, existingDoc = null) {
   const { projectId } = getConfig();
   const data = {
     ...perfil,
     actualizadoPor: callerUid,
     actualizadoEn: new Date(),
   };
-  const params = new URLSearchParams();
-  Object.keys(data).forEach((field) => params.append('updateMask.fieldPaths', field));
+  const fields = toFirestoreFields(data);
 
-  const response = await fetch(`${firestoreDocUrl(projectId, 'users', uid)}?${params.toString()}`, {
+  ['creadoEn', 'creadoPor'].forEach((field) => {
+    if (existingDoc?.fields?.[field]) {
+      fields[field] = existingDoc.fields[field];
+    }
+  });
+
+  const response = await fetch(firestoreDocUrl(projectId, 'users', uid), {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json; charset=utf-8',
     },
-    body: JSON.stringify({ fields: toFirestoreFields(data) }),
+    body: JSON.stringify({ fields }),
   });
   const payload = await response.json().catch(() => ({}));
 
@@ -371,6 +382,9 @@ module.exports = async function handler(req, res) {
     const caller = await lookupFirebaseUser(idToken);
     const accessToken = await getAccessToken();
     const callerProfile = await getUserProfile(caller.localId, accessToken);
+    const targetProfile = caller.localId === uid
+      ? callerProfile
+      : await getUserProfile(uid, accessToken);
 
     if (firestoreString(callerProfile, 'rol') !== 'edil') {
       sendError(res, 403, 'auth/unauthorized', 'No tienes permisos de Edil');
@@ -383,7 +397,7 @@ module.exports = async function handler(req, res) {
     }
 
     await updateAuthUser(uid, perfil, password, accessToken);
-    await patchUserProfile(uid, perfil, caller.localId, accessToken);
+    await replaceUserProfile(uid, perfil, caller.localId, accessToken, targetProfile);
 
     sendJson(res, 200, {
       ok: true,

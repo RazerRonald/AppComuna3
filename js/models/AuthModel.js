@@ -32,7 +32,6 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
-  updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /**
@@ -45,6 +44,7 @@ import {
  * @property {string} segundo_apellido
  * @property {string} tipo_documento
  * @property {string} numero_documento
+ * @property {string} ciudad_documento
  * @property {string} rol
  */
 
@@ -187,8 +187,12 @@ const AuthModel = {
     }
 
     const password = String(datos?.password || '');
-    const emailActual = String(usuarioActual?.email || '').trim().toLowerCase();
-    const cambiaEmail = Boolean(emailActual && perfil.email !== emailActual);
+    const emailActual = this._normalizarEmail(usuarioActual?.email || usuarioActual?.correo);
+    const emailAuthActual = auth.currentUser?.uid === uid
+      ? this._normalizarEmail(auth.currentUser.email)
+      : '';
+    const emailReferencia = emailActual || emailAuthActual;
+    const cambiaEmail = !emailReferencia || perfil.email !== emailReferencia;
     const requiereBackendAuth = cambiaEmail || Boolean(password);
 
     if (requiereBackendAuth) {
@@ -200,11 +204,21 @@ const AuthModel = {
       return usuario;
     }
 
+    const perfilRef = doc(db, COL_USERS, uid);
+    const perfilActualSnap = await getDoc(perfilRef);
+    const perfilActual = perfilActualSnap.exists() ? perfilActualSnap.data() : {};
     const payload = {
       ...perfil,
       actualizadoEn: serverTimestamp(),
     };
-    await updateDoc(doc(db, COL_USERS, uid), payload);
+    if (Object.prototype.hasOwnProperty.call(perfilActual, 'creadoEn')) {
+      payload.creadoEn = perfilActual.creadoEn;
+    }
+    if (Object.prototype.hasOwnProperty.call(perfilActual, 'creadoPor')) {
+      payload.creadoPor = perfilActual.creadoPor;
+    }
+
+    await setDoc(perfilRef, payload);
 
     const usuario = this._normalizarUsuario({
       ...usuarioActual,
@@ -315,6 +329,7 @@ const AuthModel = {
       segundo_apellido: String(datos.segundo_apellido || '').trim().replace(/\s+/g, ' '),
       tipo_documento: String(datos.tipo_documento || '').trim().toUpperCase(),
       numero_documento: String(datos.numero_documento || '').trim().replace(/\s+/g, ''),
+      ciudad_documento: String(datos.ciudad_documento || '').trim().replace(/\s+/g, ' '),
     };
   },
 
@@ -322,7 +337,7 @@ const AuthModel = {
     const nombrePerfil = String(raw.nombre || '').trim().replace(/\s+/g, ' ');
     const primerApellido = String(raw.primer_apellido || '').trim().replace(/\s+/g, ' ');
     const segundoApellido = String(raw.segundo_apellido || '').trim().replace(/\s+/g, ' ');
-    const email = String(raw.email || '').trim().toLowerCase();
+    const email = this._normalizarEmail(raw.email || raw.correo);
     const fallbackNombre = email ? email.split('@')[0] : 'Usuario';
     const base = {
       uid: String(raw.uid || raw.id || '').trim(),
@@ -332,6 +347,7 @@ const AuthModel = {
       segundo_apellido: segundoApellido,
       tipo_documento: String(raw.tipo_documento || '').trim().toUpperCase(),
       numero_documento: String(raw.numero_documento || '').trim(),
+      ciudad_documento: String(raw.ciudad_documento || '').trim().replace(/\s+/g, ' '),
       rol: this._normalizarRol(raw.rol),
       creadoEn: raw.creadoEn || null,
       creadoPor: raw.creadoPor || null,
@@ -398,6 +414,10 @@ const AuthModel = {
 
   _normalizarRol(rol) {
     return rol === ROLES.EDIL ? ROLES.EDIL : ROLES.ESTUDIANTE;
+  },
+
+  _normalizarEmail(email) {
+    return String(email || '').trim().toLowerCase();
   },
 
   _ordenarUsuarios(usuarios) {

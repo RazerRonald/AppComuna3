@@ -50,6 +50,7 @@ const PerfilView = {
                 ${this._buildDato(i18n.admin.usuariosSegundoApellido, sesion.segundo_apellido, 'bi-person')}
                 ${this._buildDato(i18n.admin.usuariosTipoDocumento, sesion.tipo_documento, 'bi-card-heading')}
                 ${this._buildDato(i18n.admin.usuariosNumeroDocumento, sesion.numero_documento, 'bi-123')}
+                ${this._buildDato(i18n.admin.usuariosCiudadDocumento, sesion.ciudad_documento, 'bi-geo-alt')}
                 ${this._buildDato(i18n.admin.usuariosCorreo, sesion.email, 'bi-envelope')}
               </div>
             </div>

@@ -224,7 +224,10 @@ const AdminUsuariosView = {
         <tr data-id="${id}">
           <td>
             <div class="fw-600">${this._esc(usuario.nombre_completo)}</div>
-            <small class="text-muted">${this._esc(usuario.tipo_documento || '-')} ${this._esc(usuario.numero_documento || '')}</small>
+            <small class="text-muted">
+              ${this._esc(usuario.tipo_documento || '-')} ${this._esc(usuario.numero_documento || '')}
+              ${usuario.ciudad_documento ? `- ${this._esc(usuario.ciudad_documento)}` : ''}
+            </small>
           </td>
           <td><span class="badge ${rolClass}">${rolLabel}</span></td>
           <td class="text-muted small">${this._esc(usuario.email)}</td>
@@ -370,6 +373,16 @@ const AdminUsuariosView = {
                  required />
         </div>
         <div class="col-md-6">
+          <label for="${prefix}-ciudad-doc" class="form-label">${i18n.admin.usuariosCiudadDocumento} *</label>
+          <input type="text"
+                 id="${prefix}-ciudad-doc"
+                 class="form-control"
+                 placeholder="${i18n.admin.usuariosPlaceholderCiudadDoc}"
+                 value="${this._esc(usuario.ciudad_documento || '')}"
+                 maxlength="80"
+                 required />
+        </div>
+        <div class="col-md-6">
           <label for="${prefix}-password" class="form-label">${edicion ? i18n.admin.usuariosPasswordNueva : i18n.admin.usuariosPassword} ${edicion ? '' : '*'}</label>
           <input type="password"
                  id="${prefix}-password"
@@ -402,6 +415,7 @@ const AdminUsuariosView = {
       segundo_apellido: document.getElementById(`${prefix}-segundo-apellido`)?.value,
       tipo_documento: document.getElementById(`${prefix}-tipo-doc`)?.value,
       numero_documento: document.getElementById(`${prefix}-numero-doc`)?.value,
+      ciudad_documento: document.getElementById(`${prefix}-ciudad-doc`)?.value,
       password: document.getElementById(`${prefix}-password`)?.value,
       confirmarPassword: document.getElementById(`${prefix}-password-confirm`)?.value,
     };
@@ -470,6 +484,7 @@ const AdminUsuariosView = {
       usuario.email,
       usuario.tipo_documento,
       usuario.numero_documento,
+      usuario.ciudad_documento,
       usuario.rol,
     ]));
   },

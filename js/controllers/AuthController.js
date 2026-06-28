@@ -194,6 +194,7 @@ const AuthController = {
       segundo_apellido: String(datos.segundo_apellido || '').trim().replace(/\s+/g, ' '),
       tipo_documento: String(datos.tipo_documento || '').trim().toUpperCase(),
       numero_documento: String(datos.numero_documento || '').trim().replace(/\s+/g, ''),
+      ciudad_documento: String(datos.ciudad_documento || '').trim().replace(/\s+/g, ' '),
     };
   },
 
@@ -205,6 +206,7 @@ const AuthController = {
       'segundo_apellido',
       'tipo_documento',
       'numero_documento',
+      'ciudad_documento',
     ];
 
     if (requeridos.some((campo) => !datos[campo])) {
@@ -221,6 +223,10 @@ const AuthController = {
 
     if (datos.numero_documento.length < 4 || datos.numero_documento.length > 30) {
       return i18n.admin.usuariosNumeroDocInvalido;
+    }
+
+    if (datos.ciudad_documento.length > 80) {
+      return i18n.admin.usuariosCiudadDocInvalida;
     }
 
     if (![ROLES.ESTUDIANTE, ROLES.EDIL].includes(datos.rol)) {

@@ -240,6 +240,7 @@ service cloud.firestore {
         'segundo_apellido',
         'tipo_documento',
         'numero_documento',
+        'ciudad_documento',
         'rol',
         'creadoEn',
         'creadoPor',
@@ -257,6 +258,7 @@ service cloud.firestore {
         'segundo_apellido',
         'tipo_documento',
         'numero_documento',
+        'ciudad_documento',
         'rol'
       ];
     }
@@ -282,6 +284,7 @@ service cloud.firestore {
         && stringNoVacio(data.segundo_apellido, 80)
         && tipoDocumentoValido(data.tipo_documento)
         && stringNoVacio(data.numero_documento, 30)
+        && stringNoVacio(data.ciudad_documento, 80)
         && rolUsuarioValido(data.rol);
     }
 

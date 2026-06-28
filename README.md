@@ -88,7 +88,7 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 
 1. El Edil entra al Panel Admin y abre `Gestionar Usuarios`.
 2. El formulario crea cuentas de estudiantes o ediles en Firebase Auth usando una instancia secundaria, para no cambiar la sesion activa del Edil.
-3. Firestore guarda `users/{uid}` con `rol`, `nombre`, `primer_apellido`, `segundo_apellido`, `tipo_documento` y `numero_documento`.
+3. Firestore guarda `users/{uid}` con `rol`, `nombre`, `primer_apellido`, `segundo_apellido`, `tipo_documento`, `numero_documento` y `ciudad_documento`.
 4. La tabla de usuarios permite editar perfiles y ver el total de estudiantes registrados.
 5. Si se cambia correo o contrasena, la app llama `/api/admin-users`; este endpoint requiere credenciales de servicio en Vercel.
 
@@ -111,4 +111,5 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 - Crear un usuario estudiante desde Panel Admin y confirmar que el Edil no pierde la sesion.
 - Crear un usuario Edil desde Panel Admin.
 - Editar datos de perfil de un estudiante.
+- Confirmar que la ciudad de expedicion del documento se ve en perfil y se usa en solicitudes de carta.
 - Editar correo o contrasena de un usuario con `/api/admin-users` configurado.

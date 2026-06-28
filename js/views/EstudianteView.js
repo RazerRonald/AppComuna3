@@ -482,7 +482,9 @@ const EstudianteView = {
             <div class="col-md-6">
               <label for="carta-ciudad-doc" class="form-label">${i18n.tramite.campoCiudadDoc} *</label>
               <input type="text" id="carta-ciudad-doc" name="ciudad_documento" class="form-control"
-                     placeholder="${i18n.tramite.placeholderCiudadDoc}" required maxlength="80" />
+                     placeholder="${i18n.tramite.placeholderCiudadDoc}"
+                     value="${this._esc(sesion?.ciudad_documento || '')}"
+                     required maxlength="80" readonly />
             </div>
             <div class="col-md-6">
               <label for="carta-universidad" class="form-label">${i18n.tramite.campoUniversidad} *</label>
