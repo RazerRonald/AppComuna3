@@ -285,7 +285,7 @@ export const i18n = {
     usuariosEditar:'Editar perfil',
     usuariosSinUsuarios:'No hay usuarios registrados.',
     usuariosSinResultados:'No se encontraron usuarios.',
-    usuariosCrearTitulo:'Crear acceso',
+    usuariosCrearTitulo:'Crear Usuario',
     usuariosEditarTitulo:'Editar usuario',
     revisarTramites:  'Revisar Trámites',
     tramitesTitulo:   'Trámites Estudiantiles',
