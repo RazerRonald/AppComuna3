@@ -461,7 +461,7 @@ const EstudianteView = {
           <div class="row g-3">
             <div class="col-12">
               <label for="carta-nombre" class="form-label">${i18n.tramite.campoNombre} *</label>
-              <input type="text" id="carta-nombre" name="nombre_completo" class="form-control"
+              <input type="text" id="carta-nombre" class="form-control"
                      placeholder="${i18n.tramite.placeholderNombre}"
                      value="${this._esc(sesion?.nombre || '')}"
                      required maxlength="120" readonly />
@@ -470,18 +470,17 @@ const EstudianteView = {
               <label for="carta-tipo-doc" class="form-label">${i18n.tramite.campoTipoDoc} *</label>
               <input type="text" id="carta-tipo-doc" class="form-control"
                      value="${this._esc(sesion?.tipo_documento || '')}" required readonly />
-              <input type="hidden" name="tipo_documento" value="${this._esc(sesion?.tipo_documento || '')}" />
             </div>
             <div class="col-md-6">
               <label for="carta-numero-doc" class="form-label">${i18n.tramite.campoNumeroDoc} *</label>
-              <input type="text" id="carta-numero-doc" name="numero_documento" class="form-control"
+              <input type="text" id="carta-numero-doc" class="form-control"
                      placeholder="${i18n.tramite.placeholderNumero}"
                      value="${this._esc(sesion?.numero_documento || '')}"
                      required maxlength="30" readonly />
             </div>
             <div class="col-md-6">
               <label for="carta-ciudad-doc" class="form-label">${i18n.tramite.campoCiudadDoc} *</label>
-              <input type="text" id="carta-ciudad-doc" name="ciudad_documento" class="form-control"
+              <input type="text" id="carta-ciudad-doc" class="form-control"
                      placeholder="${i18n.tramite.placeholderCiudadDoc}"
                      value="${this._esc(sesion?.ciudad_documento || '')}"
                      required maxlength="80" readonly />

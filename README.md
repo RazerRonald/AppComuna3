@@ -112,4 +112,5 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 - Crear un usuario Edil desde Panel Admin.
 - Editar datos de perfil de un estudiante.
 - Confirmar que la ciudad de expedicion del documento se ve en perfil y se usa en solicitudes de carta.
+- Intentar modificar desde DevTools los datos personales de una solicitud; Firestore debe rechazar valores que no coincidan con `users/{uid}`.
 - Editar correo o contrasena de un usuario con `/api/admin-users` configurado.

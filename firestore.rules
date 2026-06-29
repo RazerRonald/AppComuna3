@@ -274,6 +274,24 @@ service cloud.firestore {
       return rol == 'estudiante' || rol == 'edil';
     }
 
+    function perfilSolicitante() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function nombreCompletoPerfil(perfil) {
+      return perfil.nombre + ' ' + perfil.primer_apellido + ' ' + perfil.segundo_apellido;
+    }
+
+    function identidadSolicitudCoincideConPerfil(data) {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && perfilSolicitante().uid == request.auth.uid
+        && perfilSolicitante().rol == 'estudiante'
+        && data.nombre_completo == nombreCompletoPerfil(perfilSolicitante())
+        && data.tipo_documento == perfilSolicitante().tipo_documento
+        && data.numero_documento == perfilSolicitante().numero_documento
+        && data.ciudad_documento == perfilSolicitante().ciudad_documento;
+    }
+
     function usuarioPerfilValido(data, userId) {
       return data.keys().hasOnly(camposUsuario())
         && data.keys().hasAll(camposBaseUsuario())
@@ -367,6 +385,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(camposSolicitudInicial())
         && request.resource.data.uid_estudiante == request.auth.uid
         && request.resource.data.uid_estudiante is string
+        && identidadSolicitudCoincideConPerfil(request.resource.data)
         && request.resource.data.estado == 'Pendiente'
         && request.resource.data.fecha_solicitud == request.time
         && request.resource.data.fecha_resolucion == null

@@ -53,7 +53,7 @@ const ArchivoController = {
       return;
     }
 
-    const datos = this._normalizarFormulario(formData);
+    const datos = this._normalizarFormulario(formData, sesion);
     const errorValidacion = this._validarFormulario(datos);
     if (errorValidacion) {
       onError(errorValidacion);
@@ -402,19 +402,32 @@ const ArchivoController = {
    * Normaliza los campos del formulario.
    * @private
    */
-  _normalizarFormulario(formData) {
+  _normalizarFormulario(formData, sesion) {
     const semestreRaw = String(formData.semestre_actual || '').trim();
+    const perfil = this._datosPerfilSesion(sesion);
 
     return {
-      nombre_completo:   (formData.nombre_completo || '').trim(),
-      tipo_documento:    (formData.tipo_documento || '').trim(),
-      numero_documento:  (formData.numero_documento || '').trim(),
-      ciudad_documento:  (formData.ciudad_documento || '').trim(),
+      ...perfil,
       universidad:       (formData.universidad || '').trim(),
       carrera:           (formData.carrera || '').trim(),
       semestre_actual:   /^\d+$/.test(semestreRaw) ? Number(semestreRaw) : NaN,
       horas_a_realizar:  Number(formData.horas_a_realizar),
       lugar_realizacion: (formData.lugar_realizacion || '').trim(),
+    };
+  },
+
+  _datosPerfilSesion(sesion = {}) {
+    const nombreCompleto = [
+      sesion.nombre_perfil,
+      sesion.primer_apellido,
+      sesion.segundo_apellido,
+    ].filter(Boolean).join(' ').trim() || String(sesion.nombre || '').trim();
+
+    return {
+      nombre_completo:  nombreCompleto,
+      tipo_documento:   String(sesion.tipo_documento || '').trim(),
+      numero_documento: String(sesion.numero_documento || '').trim(),
+      ciudad_documento: String(sesion.ciudad_documento || '').trim(),
     };
   },
 
