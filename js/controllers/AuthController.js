@@ -136,6 +136,26 @@ const AuthController = {
   },
 
   /**
+   * Elimina un usuario existente desde el Panel Admin.
+   *
+   * @param {string} uid
+   * @param {Object} callbacks
+   * @returns {Promise<void>}
+   */
+  async eliminarUsuario(uid, { onLoading, onSuccess, onError }) {
+    onLoading(true);
+    try {
+      await AuthModel.eliminarUsuarioPorEdil(uid);
+      onSuccess(uid);
+    } catch (err) {
+      console.error('[AuthController.eliminarUsuario]', err);
+      onError(this._mapearErrorFirebase(err.code || err.message));
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
    * Procesa el intento de inicio de sesion.
    */
   async login(email, password, { onLoading, onSuccess, onError }) {
@@ -281,6 +301,7 @@ const AuthController = {
       'auth/operation-not-allowed':  'El proveedor Email/Password no esta habilitado en Firebase Auth.',
       'auth/unauthorized':           i18n.auth.accesoDenegado,
       'auth/no-self-demote':         i18n.admin.usuariosNoAutoCambioRol,
+      'auth/no-self-delete':         i18n.admin.usuariosNoAutoEliminar,
       'auth/user-disabled':          'Esta cuenta ha sido desactivada.',
       'auth/too-many-requests':      'Demasiados intentos. Espera unos minutos.',
       'auth/network-request-failed': i18n.auth.errorRed,

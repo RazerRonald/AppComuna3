@@ -47,80 +47,97 @@ const AdminUsuariosView = {
           </button>
         </div>
 
-        <div class="row g-4 mb-4">
-          <div class="col-md-6">
-            <div class="dashboard-stat-card">
-              <div class="stat-icon stat-icon-primary"><i class="bi bi-mortarboard"></i></div>
-              <div class="stat-number" id="stat-usuarios-estudiantes">0</div>
-              <div class="stat-label">${i18n.admin.usuariosEstudiantesRegistrados}</div>
+        <section id="usuarios-listado-view">
+          <div class="usuarios-toolbar mb-4">
+            <div class="usuarios-stats">
+              <div class="usuarios-stat">
+                <div class="usuarios-stat-icon stat-icon-primary"><i class="bi bi-mortarboard"></i></div>
+                <div>
+                  <div class="usuarios-stat-number" id="stat-usuarios-estudiantes">0</div>
+                  <div class="usuarios-stat-label">${i18n.admin.usuariosEstudiantesRegistrados}</div>
+                </div>
+              </div>
+              <div class="usuarios-stat">
+                <div class="usuarios-stat-icon stat-icon-success"><i class="bi bi-person-badge"></i></div>
+                <div>
+                  <div class="usuarios-stat-number" id="stat-usuarios-ediles">0</div>
+                  <div class="usuarios-stat-label">${i18n.admin.usuariosEdilesRegistrados}</div>
+                </div>
+              </div>
             </div>
+            <button type="button" class="btn-jal-primary d-inline-flex align-items-center gap-2" id="btn-mostrar-crear-usuario">
+              <i class="bi bi-person-plus" aria-hidden="true"></i>
+              ${i18n.admin.usuariosCrearTitulo}
+            </button>
           </div>
-          <div class="col-md-6">
-            <div class="dashboard-stat-card">
-              <div class="stat-icon stat-icon-success"><i class="bi bi-person-badge"></i></div>
-              <div class="stat-number" id="stat-usuarios-ediles">0</div>
-              <div class="stat-label">${i18n.admin.usuariosEdilesRegistrados}</div>
-            </div>
-          </div>
-        </div>
 
-        <div class="form-jal mb-4">
-          <h2 class="h5 fw-700 mb-4">
-            <i class="bi bi-person-plus text-primary me-2"></i>${i18n.admin.usuariosCrearTitulo}
-          </h2>
-          <form id="form-crear-usuario" novalidate autocomplete="off">
-            ${this._buildCamposUsuario('usuario')}
-            <div id="form-usuario-error" class="alert alert-danger d-none mt-3" role="alert"></div>
-            <div class="d-flex gap-2 mt-4 flex-wrap">
-              <button type="submit" class="btn-jal-primary" id="btn-crear-usuario">
-                <span id="btn-crear-usuario-text">
-                  <i class="bi bi-person-plus me-1"></i>${i18n.admin.usuariosCrear}
-                </span>
-                <span id="btn-crear-usuario-loading" class="d-none">
-                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>${i18n.app.guardando}
-                </span>
-              </button>
-              <button type="button" class="btn-jal-secondary" id="btn-limpiar-usuario">${i18n.app.limpiar}</button>
+          <div class="form-jal p-0 overflow-hidden mb-4">
+            <div class="p-4 border-bottom">
+              <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <h2 class="h6 fw-700 mb-0">
+                  <i class="bi bi-list-ul text-primary me-2"></i>${i18n.admin.usuariosListado}
+                </h2>
+                ${this._buildSearchBox({
+                  id: 'buscador-admin-usuarios',
+                  label: i18n.app.buscar,
+                  placeholder: i18n.admin.usuariosBuscarPlaceholder,
+                })}
+              </div>
             </div>
-          </form>
-        </div>
+            <div class="table-responsive">
+              <table class="table table-jal mb-0" aria-label="Lista de usuarios">
+                <thead>
+                  <tr>
+                    <th scope="col">${i18n.admin.colNombre}</th>
+                    <th scope="col">${i18n.admin.usuariosRol}</th>
+                    <th scope="col">${i18n.admin.usuariosCorreo}</th>
+                    <th scope="col">${i18n.admin.usuariosNumeroDocumento}</th>
+                    <th scope="col" class="text-end">${i18n.admin.colAcciones}</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-usuarios-body">
+                  <tr><td colspan="5" class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></div>
+                    ${i18n.app.cargando}
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-        <div class="form-jal p-0 overflow-hidden">
-          <div class="p-4 border-bottom">
-            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
-              <h2 class="h6 fw-700 mb-0">
-                <i class="bi bi-list-ul text-primary me-2"></i>${i18n.admin.usuariosListado}
-              </h2>
-              ${this._buildSearchBox({
-                id: 'buscador-admin-usuarios',
-                label: i18n.app.buscar,
-                placeholder: i18n.admin.usuariosBuscarPlaceholder,
-              })}
-            </div>
+        <section id="usuarios-crear-view" class="d-none">
+          <div class="mb-4">
+            <button type="button" class="btn-jal-secondary" id="btn-volver-listado-usuarios">
+              <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>${i18n.app.volver} ${i18n.admin.usuariosListado.toLowerCase()}
+            </button>
           </div>
-          <div class="table-responsive">
-            <table class="table table-jal mb-0" aria-label="Lista de usuarios">
-              <thead>
-                <tr>
-                  <th scope="col">${i18n.admin.colNombre}</th>
-                  <th scope="col">${i18n.admin.usuariosRol}</th>
-                  <th scope="col">${i18n.admin.usuariosCorreo}</th>
-                  <th scope="col">${i18n.admin.usuariosNumeroDocumento}</th>
-                  <th scope="col" class="text-end">${i18n.admin.colAcciones}</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-usuarios-body">
-                <tr><td colspan="5" class="text-center py-4 text-muted">
-                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></div>
-                  ${i18n.app.cargando}
-                </td></tr>
-              </tbody>
-            </table>
+
+          <div class="form-jal mb-4">
+            <h2 class="h5 fw-700 mb-4">
+              <i class="bi bi-person-plus text-primary me-2"></i>${i18n.admin.usuariosCrearTitulo}
+            </h2>
+            <form id="form-crear-usuario" novalidate autocomplete="off">
+              ${this._buildCamposUsuario('usuario')}
+              <div id="form-usuario-error" class="alert alert-danger d-none mt-3" role="alert"></div>
+              <div class="d-flex gap-2 mt-4 flex-wrap">
+                <button type="submit" class="btn-jal-primary" id="btn-crear-usuario">
+                  <span id="btn-crear-usuario-text">
+                    <i class="bi bi-person-plus me-1"></i>${i18n.admin.usuariosCrear}
+                  </span>
+                  <span id="btn-crear-usuario-loading" class="d-none">
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>${i18n.app.guardando}
+                  </span>
+                </button>
+                <button type="button" class="btn-jal-secondary" id="btn-limpiar-usuario">${i18n.app.limpiar}</button>
+              </div>
+            </form>
           </div>
-        </div>
+        </section>
       </div>
 
       ${this._buildModalUsuario()}
+      ${this._buildModalEliminarUsuario()}
     `;
 
     this._bindEventos();
@@ -147,6 +164,14 @@ const AdminUsuariosView = {
     document.getElementById('btn-limpiar-usuario')?.addEventListener('click', () => {
       document.getElementById('form-crear-usuario')?.reset();
       document.getElementById('form-usuario-error')?.classList.add('d-none');
+    });
+
+    document.getElementById('btn-mostrar-crear-usuario')?.addEventListener('click', () => {
+      this._mostrarVistaCrearUsuario();
+    });
+
+    document.getElementById('btn-volver-listado-usuarios')?.addEventListener('click', () => {
+      this._mostrarVistaListadoUsuarios();
     });
 
     document.getElementById('form-crear-usuario')?.addEventListener('submit', async (event) => {
@@ -185,9 +210,23 @@ const AdminUsuariosView = {
       onSuccess: () => {
         Toast.exito(i18n.admin.usuariosCreadoOk);
         document.getElementById('form-crear-usuario')?.reset();
+        this._mostrarVistaListadoUsuarios();
       },
       onError: (msg) => this._mostrarError(errorEl, msg),
     });
+  },
+
+  _mostrarVistaCrearUsuario() {
+    document.getElementById('usuarios-listado-view')?.classList.add('d-none');
+    document.getElementById('usuarios-crear-view')?.classList.remove('d-none');
+    document.getElementById('form-usuario-error')?.classList.add('d-none');
+    document.getElementById('usuario-rol')?.focus();
+  },
+
+  _mostrarVistaListadoUsuarios() {
+    document.getElementById('usuarios-crear-view')?.classList.add('d-none');
+    document.getElementById('usuarios-listado-view')?.classList.remove('d-none');
+    document.getElementById('btn-mostrar-crear-usuario')?.focus();
   },
 
   _renderResumen(usuarios) {
@@ -216,10 +255,13 @@ const AdminUsuariosView = {
       return;
     }
 
+    const sesion = AuthModel.getSesion();
+
     tbody.innerHTML = usuarios.map((usuario) => {
       const id = this._esc(usuario.uid);
       const rolLabel = usuario.rol === ROLES.EDIL ? 'Edil' : 'Estudiante';
       const rolClass = usuario.rol === ROLES.EDIL ? 'bg-success-subtle text-success-emphasis' : 'bg-primary-subtle text-primary-emphasis';
+      const esPropioUsuario = sesion?.uid === usuario.uid;
       return `
         <tr data-id="${id}">
           <td>
@@ -233,12 +275,21 @@ const AdminUsuariosView = {
           <td class="text-muted small">${this._esc(usuario.email)}</td>
           <td class="text-muted small">${this._esc(usuario.numero_documento || '-')}</td>
           <td class="text-end">
-            <button type="button"
-                    class="btn btn-sm btn-outline-primary btn-editar-usuario"
-                    data-id="${id}"
-                    aria-label="${i18n.admin.usuariosEditar}">
-              <i class="bi bi-pencil"></i> ${i18n.app.editar}
-            </button>
+            <div class="d-flex justify-content-end gap-2 flex-wrap">
+              <button type="button"
+                      class="btn btn-sm btn-outline-primary btn-editar-usuario"
+                      data-id="${id}"
+                      aria-label="${i18n.admin.usuariosEditar}">
+                <i class="bi bi-pencil"></i> ${i18n.app.editar}
+              </button>
+              <button type="button"
+                      class="btn btn-sm btn-outline-danger btn-eliminar-usuario"
+                      data-id="${id}"
+                      aria-label="${i18n.app.eliminar}"
+                      ${esPropioUsuario ? 'disabled' : ''}>
+                <i class="bi bi-trash"></i> ${i18n.app.eliminar}
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -246,6 +297,10 @@ const AdminUsuariosView = {
 
     tbody.querySelectorAll('.btn-editar-usuario').forEach((btn) => {
       btn.addEventListener('click', () => this._mostrarModalEditar(btn.dataset.id));
+    });
+
+    tbody.querySelectorAll('.btn-eliminar-usuario').forEach((btn) => {
+      btn.addEventListener('click', () => this._confirmarEliminarUsuario(btn.dataset.id));
     });
   },
 
@@ -297,6 +352,43 @@ const AdminUsuariosView = {
         onError: (msg) => this._mostrarError(errorEl, msg),
       },
     );
+  },
+
+  _confirmarEliminarUsuario(uid) {
+    const usuario = this._usuariosCache.find((item) => item.uid === uid);
+    const sesion = AuthModel.getSesion();
+    const modalEl = document.getElementById('modal-eliminar-usuario');
+    const bodyEl = document.getElementById('modal-eliminar-usuario-body');
+    const btnConfirmar = document.getElementById('btn-confirmar-eliminar-usuario');
+    if (!usuario || !modalEl || !bodyEl || !btnConfirmar) return;
+
+    if (sesion?.uid === uid) {
+      Toast.error(i18n.admin.usuariosNoAutoEliminar);
+      return;
+    }
+
+    bodyEl.innerHTML = i18n.admin.usuariosConfirmarEliminar
+      .replace('{nombre}', `<strong>${this._esc(usuario.nombre_completo)}</strong>`);
+
+    const bsModal = new window.bootstrap.Modal(modalEl);
+    const nuevoBtn = btnConfirmar.cloneNode(true);
+    btnConfirmar.parentNode.replaceChild(nuevoBtn, btnConfirmar);
+    nuevoBtn.addEventListener('click', async () => {
+      await this._eliminarUsuario(usuario, bsModal);
+    });
+
+    bsModal.show();
+  },
+
+  async _eliminarUsuario(usuario, bsModal) {
+    await AuthController.eliminarUsuario(usuario.uid, {
+      onLoading: (v) => this._setFormLoading('btn-confirmar-eliminar-usuario', v),
+      onSuccess: () => {
+        Toast.exito(i18n.admin.usuariosEliminadoOk);
+        bsModal.hide();
+      },
+      onError: (msg) => Toast.error(msg),
+    });
   },
 
   _buildCamposUsuario(prefix, usuario = {}, { edicion = false } = {}) {
@@ -439,6 +531,34 @@ const AdminUsuariosView = {
                   <i class="bi bi-check2-circle me-1"></i>${i18n.app.guardar}
                 </span>
                 <span id="btn-guardar-usuario-loading" class="d-none">
+                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>${i18n.app.guardando}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  _buildModalEliminarUsuario() {
+    return `
+      <div class="modal fade modal-jal" id="modal-eliminar-usuario" tabindex="-1"
+           aria-labelledby="modal-eliminar-usuario-title" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modal-eliminar-usuario-title">${i18n.app.confirmar}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="modal-eliminar-usuario-body"></div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${i18n.app.cancelar}</button>
+              <button type="button" class="btn btn-danger" id="btn-confirmar-eliminar-usuario">
+                <span id="btn-confirmar-eliminar-usuario-text">
+                  <i class="bi bi-trash me-1"></i>${i18n.app.eliminar}
+                </span>
+                <span id="btn-confirmar-eliminar-usuario-loading" class="d-none">
                   <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>${i18n.app.guardando}
                 </span>
               </button>

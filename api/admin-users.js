@@ -371,6 +371,46 @@ async function replaceUserProfile(uid, perfil, callerUid, accessToken, existingD
   return payload;
 }
 
+async function deleteUserProfile(uid, accessToken) {
+  const { projectId } = getConfig();
+  const response = await fetch(firestoreDocUrl(projectId, 'users', uid), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok && response.status !== 404) {
+    const err = new Error(payload.error?.message || 'No se pudo eliminar el perfil');
+    err.code = 'permission-denied';
+    err.statusCode = response.status;
+    throw err;
+  }
+}
+
+async function deleteAuthUser(uid, accessToken) {
+  const { projectId } = getConfig();
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:delete`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify({ localId: uid }),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+  const code = String(payload.error?.message || '');
+
+  if (!response.ok && response.status !== 404 && code !== 'USER_NOT_FOUND') {
+    const err = new Error(payload.error?.message || 'No se pudo eliminar Firebase Auth');
+    err.code = code || 'auth/delete-failed';
+    err.statusCode = response.status;
+    throw err;
+  }
+}
+
 async function updateAuthUser(uid, perfil, password, accessToken) {
   const { projectId } = getConfig();
   const body = {
@@ -405,13 +445,13 @@ async function updateAuthUser(uid, perfil, password, accessToken) {
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
-    res.setHeader('Allow', 'PATCH, OPTIONS');
+    res.setHeader('Allow', 'PATCH, DELETE, OPTIONS');
     res.end();
     return;
   }
 
-  if (req.method !== 'PATCH') {
-    res.setHeader('Allow', 'PATCH, OPTIONS');
+  if (!['PATCH', 'DELETE'].includes(req.method)) {
+    res.setHeader('Allow', 'PATCH, DELETE, OPTIONS');
     sendError(res, 405, 'method-not-allowed', 'Metodo no permitido');
     return;
   }
@@ -424,9 +464,30 @@ module.exports = async function handler(req, res) {
     }
 
     const body = await readBody(req);
-    const uid = String(body.uid || '').trim();
+    const uid = String(body.uid || req.query?.uid || '').trim();
     if (!validarUid(uid)) {
       sendError(res, 400, 'invalid-uid', 'UID invalido');
+      return;
+    }
+
+    const caller = await lookupFirebaseUser(idToken);
+    const accessToken = await getAccessToken();
+    const callerProfile = await getUserProfile(caller.localId, accessToken);
+
+    if (firestoreString(callerProfile, 'rol') !== 'edil') {
+      sendError(res, 403, 'auth/unauthorized', 'No tienes permisos de Edil');
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      if (caller.localId === uid) {
+        sendError(res, 400, 'auth/no-self-delete', 'No puedes eliminar tu propio usuario');
+        return;
+      }
+
+      await deleteAuthUser(uid, accessToken);
+      await deleteUserProfile(uid, accessToken);
+      sendJson(res, 200, { ok: true, uid });
       return;
     }
 
@@ -443,17 +504,9 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const caller = await lookupFirebaseUser(idToken);
-    const accessToken = await getAccessToken();
-    const callerProfile = await getUserProfile(caller.localId, accessToken);
     const targetProfile = caller.localId === uid
       ? callerProfile
       : await getUserProfile(uid, accessToken);
-
-    if (firestoreString(callerProfile, 'rol') !== 'edil') {
-      sendError(res, 403, 'auth/unauthorized', 'No tienes permisos de Edil');
-      return;
-    }
 
     if (caller.localId === uid && perfil.rol !== 'edil') {
       sendError(res, 400, 'auth/no-self-demote', 'No puedes quitar tu propio rol Edil');

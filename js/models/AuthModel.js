@@ -236,6 +236,27 @@ const AuthModel = {
   },
 
   /**
+   * Elimina un usuario administrado desde el Panel Admin.
+   * La eliminacion de Firebase Auth y Firestore se delega al endpoint
+   * serverless para no exponer privilegios administrativos en el cliente.
+   *
+   * @param {string} uid
+   * @returns {Promise<void>}
+   */
+  async eliminarUsuarioPorEdil(uid) {
+    const sesionEdil = this.getSesion();
+    if (!sesionEdil || sesionEdil.rol !== ROLES.EDIL) {
+      throw this._crearError('auth/unauthorized');
+    }
+
+    if (uid === sesionEdil.uid) {
+      throw this._crearError('auth/no-self-delete');
+    }
+
+    await this._eliminarUsuarioViaApi(uid);
+  },
+
+  /**
    * Inicia sesion con correo y contrasena usando Firebase Auth.
    *
    * @param {string} email
@@ -409,6 +430,30 @@ const AuthModel = {
     }
 
     return this._normalizarUsuario(payload.usuario || perfil);
+  },
+
+  async _eliminarUsuarioViaApi(uid) {
+    const token = await auth.currentUser?.getIdToken?.();
+    if (!token) {
+      throw this._crearError('auth/unauthorized');
+    }
+
+    const response = await fetch('/api/admin-users', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ uid }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if ([404, 405, 501].includes(response.status)) {
+        throw this._crearError('api/backend-unavailable');
+      }
+      throw this._crearError(payload.code || `api/${response.status}`, payload.error);
+    }
   },
 
   _buildNombreCompleto(usuario = {}) {
