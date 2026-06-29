@@ -29,9 +29,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
+  where,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /**
@@ -78,6 +81,8 @@ const AuthModel = {
     const perfilBase = this._normalizarPerfilEntrada(datos);
     const rol = this._normalizarRol(datos?.rol);
     const password = String(datos?.password || '');
+    await this._asegurarDocumentoDisponible(perfilBase.numero_documento);
+
     const appName = `admin-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const secondaryApp = initializeApp(firebaseConfig, appName);
     const secondaryAuth = getAuth(secondaryApp);
@@ -185,6 +190,8 @@ const AuthModel = {
     if (uid === sesionEdil.uid && perfil.rol !== ROLES.EDIL) {
       throw this._crearError('auth/no-self-demote');
     }
+
+    await this._asegurarDocumentoDisponible(perfil.numero_documento, uid);
 
     const password = String(datos?.password || '');
     const emailActual = this._normalizarEmail(usuarioActual?.email || usuarioActual?.correo);
@@ -418,6 +425,22 @@ const AuthModel = {
 
   _normalizarEmail(email) {
     return String(email || '').trim().toLowerCase();
+  },
+
+  async _asegurarDocumentoDisponible(numeroDocumento, uidActual = '') {
+    const numero = String(numeroDocumento || '').trim();
+    if (!numero) return;
+
+    const snap = await getDocs(query(
+      collection(db, COL_USERS),
+      where('numero_documento', '==', numero),
+      limit(2),
+    ));
+
+    const duplicado = snap.docs.some((perfilDoc) => perfilDoc.id !== uidActual);
+    if (duplicado) {
+      throw this._crearError('profile/document-duplicate');
+    }
   },
 
   _ordenarUsuarios(usuarios) {

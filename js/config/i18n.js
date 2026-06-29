@@ -269,6 +269,7 @@ export const i18n = {
     usuariosTipoDocInvalido:'Selecciona un tipo de documento valido.',
     usuariosNumeroDocInvalido:'El numero de documento debe tener entre 4 y 30 caracteres.',
     usuariosCiudadDocInvalida:'La ciudad de expedicion no puede superar 80 caracteres.',
+    usuariosDocumentoExiste:'Ya existe un usuario registrado con ese numero de documento.',
     usuariosEmailExiste:'Ya existe una cuenta con ese correo.',
     usuariosErrorPermisos:'Firestore rechazo la operacion. Publica las reglas actualizadas.',
     usuariosBackendNoDisponible:'Para cambiar correo o contrasena debes ejecutar la app con Vercel Dev o desplegarla en Vercel.',

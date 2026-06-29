@@ -239,8 +239,27 @@ function firestoreDocUrl(projectId, collection, id) {
   ].join('/');
 }
 
+function firestoreRunQueryUrl(projectId) {
+  return [
+    'https://firestore.googleapis.com/v1/projects',
+    encodeURIComponent(projectId),
+    'databases',
+    encodeURIComponent(FIRESTORE_DATABASE),
+    'documents:runQuery',
+  ].join('/');
+}
+
 function firestoreString(doc, field) {
   return doc?.fields?.[field]?.stringValue || '';
+}
+
+function firestoreDocId(docName = '') {
+  const raw = String(docName || '').split('/').pop() || '';
+  try {
+    return decodeURIComponent(raw);
+  } catch (_) {
+    return raw;
+  }
 }
 
 async function getUserProfile(uid, accessToken) {
@@ -258,6 +277,51 @@ async function getUserProfile(uid, accessToken) {
   }
 
   return payload;
+}
+
+async function assertDocumentNumberAvailable(numeroDocumento, accessToken, uidActual = '') {
+  const numero = String(numeroDocumento || '').trim();
+  if (!numero) return;
+
+  const { projectId } = getConfig();
+  const response = await fetch(firestoreRunQueryUrl(projectId), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'users' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'numero_documento' },
+            op: 'EQUAL',
+            value: { stringValue: numero },
+          },
+        },
+        limit: 2,
+      },
+    }),
+  });
+  const payload = await response.json().catch(() => []);
+
+  if (!response.ok) {
+    const err = new Error(payload.error?.message || 'No se pudo validar el numero de documento');
+    err.code = 'permission-denied';
+    err.statusCode = response.status;
+    throw err;
+  }
+
+  const duplicado = Array.isArray(payload)
+    && payload.some((row) => row.document && firestoreDocId(row.document.name) !== uidActual);
+
+  if (duplicado) {
+    const err = new Error('Ya existe un usuario registrado con ese numero de documento');
+    err.code = 'profile/document-duplicate';
+    err.statusCode = 409;
+    throw err;
+  }
 }
 
 function toFirestoreFields(data) {
@@ -396,6 +460,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    await assertDocumentNumberAvailable(perfil.numero_documento, accessToken, uid);
     await updateAuthUser(uid, perfil, password, accessToken);
     await replaceUserProfile(uid, perfil, caller.localId, accessToken, targetProfile);
 

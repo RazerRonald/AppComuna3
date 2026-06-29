@@ -285,6 +285,7 @@ const AuthController = {
       'auth/too-many-requests':      'Demasiados intentos. Espera unos minutos.',
       'auth/network-request-failed': i18n.auth.errorRed,
       'profile/not-found':           i18n.auth.errorPerfilNoEncontrado || 'Tu cuenta no tiene un perfil registrado. Solicita al Edil administrador que complete tu perfil.',
+      'profile/document-duplicate':  i18n.admin.usuariosDocumentoExiste,
       'permission-denied':           i18n.admin.usuariosErrorPermisos,
       'api/backend-unavailable':     i18n.admin.usuariosBackendNoDisponible,
       'api/404':                     i18n.admin.usuariosBackendNoDisponible,
