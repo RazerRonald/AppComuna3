@@ -231,6 +231,28 @@ const ArchivoController = {
   },
 
   /**
+   * Aprueba una solicitud sin expedir ni subir documento a Drive.
+   */
+  async aprobar(tramiteId, { onLoading, onSuccess, onError }) {
+    const sesion = AuthModel.getSesion();
+    if (!sesion) {
+      onError(i18n.auth.accesoDenegado);
+      return;
+    }
+
+    onLoading(true);
+    try {
+      await ArchivoModel.actualizarEstado(tramiteId, ESTADOS_TRAMITE.APROBADO);
+      onSuccess();
+    } catch (err) {
+      console.error('[ArchivoController.aprobar]', err);
+      onError(i18n.admin.errorAccion);
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
    * Rechaza una solicitud y guarda la sugerencia de correccion.
    */
   async rechazar(tramiteId, sugerenciaCorreccion, { onLoading, onSuccess, onError }) {

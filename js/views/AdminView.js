@@ -925,11 +925,18 @@ const AdminView = {
           </td>
           <td class="text-end">
             <div class="d-flex gap-1 justify-content-end flex-wrap">
-              ${t.estado === ESTADOS_TRAMITE.PENDIENTE ? `
+              ${[ESTADOS_TRAMITE.PENDIENTE, ESTADOS_TRAMITE.APROBADO].includes(t.estado) ? `
                 <button class="btn btn-sm btn-jal-primary btn-vista-previa"
                         data-id="${this._esc(t.id)}"
                         aria-label="${i18n.admin.vistaPrevia}">
                   <i class="bi bi-eye"></i> ${i18n.admin.vistaPrevia}
+                </button>
+              ` : ''}
+              ${t.estado === ESTADOS_TRAMITE.PENDIENTE ? `
+                <button class="btn btn-sm btn-outline-success btn-aprobar-tramite"
+                        data-id="${this._esc(t.id)}"
+                        aria-label="${i18n.admin.aprobar}">
+                  <i class="bi bi-check2-circle"></i> ${i18n.admin.aprobar}
                 </button>
                 <button class="btn btn-sm btn-jal-danger btn-rechazar-tramite"
                         data-id="${this._esc(t.id)}"
@@ -989,6 +996,18 @@ const AdminView = {
       btn.addEventListener('click', () => {
         const tramite = tramites.find((t) => t.id === btn.dataset.id);
         if (tramite) this._mostrarVistaPrevia(tramite);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-aprobar-tramite').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this._confirmar(i18n.admin.confirmarAprobar, async () => {
+          await ArchivoController.aprobar(btn.dataset.id, {
+            onLoading: () => {},
+            onSuccess: () => Toast.exito(i18n.admin.aprobadoOk),
+            onError:   (msg) => Toast.error(msg),
+          });
+        });
       });
     });
 
@@ -1258,7 +1277,8 @@ const AdminView = {
 
     if (tituloEl) tituloEl.textContent = i18n.admin.modalCartaTitulo;
     btnDescargar.innerHTML = `<i class="bi bi-download me-1"></i>${i18n.admin.descargarCarta}`;
-    btnExpedir.innerHTML = `<i class="bi bi-check2-circle me-1"></i>${i18n.admin.marcarExpedida}`;
+    btnExpedir.classList.add('d-none');
+    btnExpedir.disabled = true;
 
     const fechaCarta = new Date().toLocaleDateString('es-CO', {
       day: 'numeric', month: 'long', year: 'numeric',
@@ -1315,29 +1335,6 @@ const AdminView = {
       });
     });
 
-    // ─── Botón: Marcar como expedida (sube a Drive + cambia estado) ───
-    const newBtn = btnExpedir.cloneNode(true);
-    btnExpedir.parentNode.replaceChild(newBtn, btnExpedir);
-
-    newBtn.addEventListener('click', async () => {
-      await ArchivoController.expedirDocumento(tramite.id, tramite, {
-        onLoading: (v) => {
-          const prog = document.getElementById('modal-carta-progress');
-          if (prog) prog.classList.toggle('d-none', !v);
-          newBtn.disabled = v;
-        },
-        onProgress: (msg) => {
-          const el = document.getElementById('modal-carta-progress-msg');
-          if (el) el.textContent = msg;
-        },
-        onSuccess: () => {
-          Toast.exito(i18n.admin.expedidoOk);
-          bsModal.hide();
-        },
-        onError: (msg) => Toast.error(msg),
-      });
-    });
-
     bsModal.show();
   },
 
@@ -1358,6 +1355,8 @@ const AdminView = {
     if (tituloEl) tituloEl.textContent = i18n.admin.modalFinalizacionTitulo;
     btnDescargar.innerHTML = `<i class="bi bi-download me-1"></i>${i18n.admin.descargarFinalizacion}`;
     btnExpedir.innerHTML = `<i class="bi bi-check2-circle me-1"></i>${i18n.admin.marcarFinalizacionExpedida}`;
+    btnExpedir.classList.remove('d-none');
+    btnExpedir.disabled = false;
 
     const fechaCarta = new Date().toLocaleDateString('es-CO', {
       day: 'numeric', month: 'long', year: 'numeric',
