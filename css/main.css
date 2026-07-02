@@ -1362,6 +1362,10 @@ img {
   padding: 1rem 1.5rem;
 }
 
+.admin-motivo-rechazo-text {
+  white-space: pre-wrap;
+}
+
 /* ─── 20. DETALLE DE NOTICIA ─── */
 .noticia-detail-img {
   width: 100%;

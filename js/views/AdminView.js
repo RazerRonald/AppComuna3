@@ -849,6 +849,7 @@ const AdminView = {
 
       ${this._buildModalConfirmacion()}
       ${this._buildModalRechazo()}
+      ${this._buildModalMotivoRechazo()}
       ${this._buildModalCarta()}
     `;
 
@@ -943,6 +944,22 @@ const AdminView = {
                   <i class="bi bi-file-earmark-check"></i> Ver carta
                 </a>
               ` : ''}
+              ${t.estado === ESTADOS_TRAMITE.RECHAZADO && t.sugerencia_correccion ? `
+                <button class="btn btn-sm btn-outline-danger btn-ver-motivo-rechazo"
+                        data-id="${this._esc(t.id)}"
+                        data-tipo="inicial"
+                        aria-label="${i18n.admin.verMotivoRechazo}">
+                  <i class="bi bi-chat-left-text"></i> ${i18n.admin.verMotivoRechazo}
+                </button>
+              ` : ''}
+              ${t.finalizacion_estado === 'Rechazada' && t.finalizacion_sugerencia_correccion ? `
+                <button class="btn btn-sm btn-outline-danger btn-ver-motivo-rechazo"
+                        data-id="${this._esc(t.id)}"
+                        data-tipo="finalizacion"
+                        aria-label="${i18n.admin.verMotivoRechazo}">
+                  <i class="bi bi-chat-left-text"></i> ${i18n.admin.verMotivoRechazo}
+                </button>
+              ` : ''}
               ${t.finalizacion_estado === 'Pendiente' ? `
                 <button class="btn btn-sm btn-outline-primary btn-vista-previa-finalizacion"
                         data-id="${this._esc(t.id)}"
@@ -993,6 +1010,13 @@ const AdminView = {
       btn.addEventListener('click', () => {
         const tramite = tramites.find((t) => t.id === btn.dataset.id);
         if (tramite) this._mostrarModalRechazo(tramite, 'finalizacion');
+      });
+    });
+
+    tbody.querySelectorAll('.btn-ver-motivo-rechazo').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tramite = tramites.find((t) => t.id === btn.dataset.id);
+        if (tramite) this._mostrarModalMotivoRechazo(tramite, btn.dataset.tipo);
       });
     });
 
@@ -1110,6 +1134,74 @@ const AdminView = {
     const valida = sugerencia.length > 0 && sugerencia.length <= 1000;
     textarea?.classList.toggle('is-invalid', !valida);
     return valida;
+  },
+
+  /**
+   * Construye el modal de lectura del motivo de rechazo enviado al estudiante.
+   * @private
+   */
+  _buildModalMotivoRechazo() {
+    return `
+      <div class="modal fade modal-jal" id="modal-motivo-rechazo" tabindex="-1"
+           aria-labelledby="modal-motivo-rechazo-titulo" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modal-motivo-rechazo-titulo">${i18n.admin.modalMotivoRechazoTitulo}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="modal-motivo-rechazo-body"></div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${i18n.app.cerrar}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Muestra el comentario enviado al estudiante al rechazar una solicitud.
+   * @private
+   */
+  _mostrarModalMotivoRechazo(tramite, tipo) {
+    const modalEl = document.getElementById('modal-motivo-rechazo');
+    const tituloEl = document.getElementById('modal-motivo-rechazo-titulo');
+    const bodyEl = document.getElementById('modal-motivo-rechazo-body');
+
+    if (!modalEl || !tituloEl || !bodyEl) return;
+
+    const esFinalizacion = tipo === 'finalizacion';
+    const comentario = esFinalizacion
+      ? tramite.finalizacion_sugerencia_correccion
+      : tramite.sugerencia_correccion;
+    const fechaRevision = esFinalizacion
+      ? tramite.fecha_sugerencia_finalizacion
+      : tramite.fecha_sugerencia_correccion;
+    const fecha = this._formatFecha(fechaRevision);
+
+    tituloEl.textContent = esFinalizacion
+      ? i18n.admin.modalMotivoRechazoFinalizacionTitulo
+      : i18n.admin.modalMotivoRechazoTitulo;
+
+    bodyEl.innerHTML = `
+      <div class="mb-3">
+        <div class="fw-700">${this._esc(tramite.nombre_completo)}</div>
+        <small class="text-muted">
+          ${this._esc(tramite.tipo_documento)} ${this._esc(tramite.numero_documento)}
+          ${fechaRevision ? ` · ${fecha}` : ''}
+        </small>
+      </div>
+      <div class="alert alert-danger d-flex gap-2 mb-0" role="note">
+        <i class="bi bi-chat-left-text flex-shrink-0" aria-hidden="true"></i>
+        <div>
+          <div class="fw-700 mb-1">${i18n.admin.motivoRechazoIntro}</div>
+          <div class="admin-motivo-rechazo-text">${this._esc(comentario || i18n.admin.motivoRechazoSinComentario)}</div>
+        </div>
+      </div>
+    `;
+
+    new window.bootstrap.Modal(modalEl).show();
   },
 
   /**
