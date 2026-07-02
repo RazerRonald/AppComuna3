@@ -20,12 +20,18 @@
  *   estado:                'Pendiente' | 'Aprobado' | 'Rechazado' | 'Expedida',
  *   fecha_solicitud:       Timestamp,
  *   fecha_resolucion:      Timestamp | null,
+ *   sugerencia_correccion: string | null,
+ *   fecha_sugerencia_correccion: Timestamp | null,
+ *   uid_edil_revision: string | null,
  *   documento_expedido_id: null,  // enlaces reales en info_carta_documentos
  *   documento_expedido_url: null,
  *   finalizacion_solicitada: boolean,
  *   finalizacion_estado: string | null,
  *   fecha_solicitud_finalizacion: Timestamp | null,
  *   fecha_expedicion_finalizacion: Timestamp | null,
+ *   finalizacion_sugerencia_correccion: string | null,
+ *   fecha_sugerencia_finalizacion: Timestamp | null,
+ *   uid_edil_revision_finalizacion: string | null,
  *   documento_finalizacion_id: null,
  *   documento_finalizacion_url: null,
  * }
@@ -68,12 +74,18 @@ import {
  * @property {string}    estado
  * @property {import('firebase/firestore').Timestamp} fecha_solicitud
  * @property {import('firebase/firestore').Timestamp|null} fecha_resolucion
+ * @property {string|null} sugerencia_correccion
+ * @property {import('firebase/firestore').Timestamp|null} fecha_sugerencia_correccion
+ * @property {string|null} uid_edil_revision
  * @property {string|null} documento_expedido_id - Solo se adjunta en flujos del Edil
  * @property {string|null} documento_expedido_url - Solo se adjunta en flujos del Edil
  * @property {boolean}   finalizacion_solicitada
  * @property {string|null} finalizacion_estado
  * @property {import('firebase/firestore').Timestamp|null} fecha_solicitud_finalizacion
  * @property {import('firebase/firestore').Timestamp|null} fecha_expedicion_finalizacion
+ * @property {string|null} finalizacion_sugerencia_correccion
+ * @property {import('firebase/firestore').Timestamp|null} fecha_sugerencia_finalizacion
+ * @property {string|null} uid_edil_revision_finalizacion
  * @property {string|null} documento_finalizacion_id - Solo se adjunta en flujos del Edil
  * @property {string|null} documento_finalizacion_url - Solo se adjunta en flujos del Edil
  */
@@ -364,12 +376,18 @@ const ArchivoModel = {
       estado:                ESTADOS_TRAMITE.PENDIENTE,
       fecha_solicitud:       serverTimestamp(),
       fecha_resolucion:      null,
+      sugerencia_correccion: null,
+      fecha_sugerencia_correccion: null,
+      uid_edil_revision:     null,
       documento_expedido_id: null,
       documento_expedido_url: null,
       finalizacion_solicitada: false,
       finalizacion_estado:    null,
       fecha_solicitud_finalizacion: null,
       fecha_expedicion_finalizacion: null,
+      finalizacion_sugerencia_correccion: null,
+      fecha_sugerencia_finalizacion: null,
+      uid_edil_revision_finalizacion: null,
       documento_finalizacion_id: null,
       documento_finalizacion_url: null,
     });
@@ -425,6 +443,24 @@ const ArchivoModel = {
     await updateDoc(doc(db, COL_ARCHIVOS, tramiteId), {
       estado:          nuevoEstado,
       fecha_resolucion: serverTimestamp(),
+    });
+  },
+
+  /**
+   * Rechaza una carta barrial y registra la sugerencia visible para el estudiante.
+   *
+   * @param {string} tramiteId
+   * @param {string} sugerenciaCorreccion
+   * @param {string} uidEdil
+   * @returns {Promise<void>}
+   */
+  async rechazarTramite(tramiteId, sugerenciaCorreccion, uidEdil) {
+    await updateDoc(doc(db, COL_ARCHIVOS, tramiteId), {
+      estado:                       ESTADOS_TRAMITE.RECHAZADO,
+      fecha_resolucion:             serverTimestamp(),
+      sugerencia_correccion:        this._normalizarSugerencia(sugerenciaCorreccion),
+      fecha_sugerencia_correccion:  serverTimestamp(),
+      uid_edil_revision:            uidEdil,
     });
   },
 
@@ -501,6 +537,23 @@ const ArchivoModel = {
     });
 
     await batch.commit();
+  },
+
+  /**
+   * Rechaza la carta de finalizacion y registra la sugerencia visible.
+   *
+   * @param {string} tramiteId
+   * @param {string} sugerenciaCorreccion
+   * @param {string} uidEdil
+   * @returns {Promise<void>}
+   */
+  async rechazarFinalizacion(tramiteId, sugerenciaCorreccion, uidEdil) {
+    await updateDoc(doc(db, COL_ARCHIVOS, tramiteId), {
+      finalizacion_estado: 'Rechazada',
+      finalizacion_sugerencia_correccion: this._normalizarSugerencia(sugerenciaCorreccion),
+      fecha_sugerencia_finalizacion: serverTimestamp(),
+      uid_edil_revision_finalizacion: uidEdil,
+    });
   },
 
   /**
@@ -603,6 +656,14 @@ const ArchivoModel = {
     if (!ts) return 0;
     if (ts.toMillis) return ts.toMillis();
     return new Date(ts).getTime();
+  },
+
+  /**
+   * Normaliza espacios y limita el texto de revision guardado en Firestore.
+   * @private
+   */
+  _normalizarSugerencia(valor) {
+    return String(valor || '').trim().replace(/\s+/g, ' ').slice(0, 1000);
   },
 };
 

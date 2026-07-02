@@ -53,6 +53,38 @@ service cloud.firestore {
         'estado',
         'fecha_solicitud',
         'fecha_resolucion',
+        'sugerencia_correccion',
+        'fecha_sugerencia_correccion',
+        'uid_edil_revision',
+        'documento_expedido_id',
+        'documento_expedido_url',
+        'finalizacion_solicitada',
+        'finalizacion_estado',
+        'fecha_solicitud_finalizacion',
+        'fecha_expedicion_finalizacion',
+        'finalizacion_sugerencia_correccion',
+        'fecha_sugerencia_finalizacion',
+        'uid_edil_revision_finalizacion',
+        'documento_finalizacion_id',
+        'documento_finalizacion_url'
+      ];
+    }
+
+    function camposSolicitudInicialRequeridos() {
+      return [
+        'uid_estudiante',
+        'nombre_completo',
+        'tipo_documento',
+        'numero_documento',
+        'ciudad_documento',
+        'universidad',
+        'carrera',
+        'semestre_actual',
+        'horas_a_realizar',
+        'lugar_realizacion',
+        'estado',
+        'fecha_solicitud',
+        'fecha_resolucion',
         'documento_expedido_id',
         'documento_expedido_url',
         'finalizacion_solicitada',
@@ -74,6 +106,16 @@ service cloud.firestore {
       let valor = data.get(campo, null);
       return valor == null
         || (valor is string && valor.size() <= max);
+    }
+
+    function timestampOpcional(data, campo) {
+      let valor = data.get(campo, null);
+      return valor == null || valor is timestamp;
+    }
+
+    function timestampActualSiCambia(campo) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([campo])
+        || request.resource.data.get(campo, null) == request.time;
     }
 
     function camposCrearNoticia() {
@@ -292,6 +334,115 @@ service cloud.firestore {
         && data.ciudad_documento == perfilSolicitante().ciudad_documento;
     }
 
+    function camposEditablesSolicitudEdil() {
+      return [
+        'estado',
+        'fecha_resolucion',
+        'sugerencia_correccion',
+        'fecha_sugerencia_correccion',
+        'uid_edil_revision',
+        'documento_expedido_id',
+        'documento_expedido_url',
+        'finalizacion_solicitada',
+        'finalizacion_estado',
+        'fecha_expedicion_finalizacion',
+        'finalizacion_sugerencia_correccion',
+        'fecha_sugerencia_finalizacion',
+        'uid_edil_revision_finalizacion',
+        'documento_finalizacion_id',
+        'documento_finalizacion_url'
+      ];
+    }
+
+    function estadoTramiteValido(estado) {
+      return estado == 'Pendiente'
+        || estado == 'Aprobado'
+        || estado == 'Rechazado'
+        || estado == 'Expedida';
+    }
+
+    function estadoFinalizacionValido(data) {
+      let estado = data.get('finalizacion_estado', null);
+      return estado == null
+        || estado == 'Pendiente'
+        || estado == 'Rechazada'
+        || estado == 'Expedida';
+    }
+
+    function solicitudBaseNoCambia() {
+      return request.resource.data.uid_estudiante == resource.data.uid_estudiante
+        && request.resource.data.nombre_completo == resource.data.nombre_completo
+        && request.resource.data.tipo_documento == resource.data.tipo_documento
+        && request.resource.data.numero_documento == resource.data.numero_documento
+        && request.resource.data.ciudad_documento == resource.data.ciudad_documento
+        && request.resource.data.universidad == resource.data.universidad
+        && request.resource.data.carrera == resource.data.carrera
+        && request.resource.data.semestre_actual == resource.data.semestre_actual
+        && request.resource.data.horas_a_realizar == resource.data.horas_a_realizar
+        && request.resource.data.lugar_realizacion == resource.data.lugar_realizacion
+        && request.resource.data.fecha_solicitud == resource.data.fecha_solicitud
+        && request.resource.data.get('fecha_solicitud_finalizacion', null) == resource.data.get('fecha_solicitud_finalizacion', null);
+    }
+
+    function revisionInicialEdilValida() {
+      return (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'sugerencia_correccion',
+            'fecha_sugerencia_correccion',
+            'uid_edil_revision'
+          ])
+          || (
+            stringNoVacio(request.resource.data.sugerencia_correccion, 1000)
+            && request.resource.data.fecha_sugerencia_correccion == request.time
+            && request.resource.data.uid_edil_revision == request.auth.uid
+          )
+        )
+        && (
+          request.resource.data.estado != 'Rechazado'
+          || resource.data.estado == 'Rechazado'
+          || stringNoVacio(request.resource.data.sugerencia_correccion, 1000)
+        );
+    }
+
+    function revisionFinalizacionEdilValida() {
+      return (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'finalizacion_sugerencia_correccion',
+            'fecha_sugerencia_finalizacion',
+            'uid_edil_revision_finalizacion'
+          ])
+          || (
+            stringNoVacio(request.resource.data.finalizacion_sugerencia_correccion, 1000)
+            && request.resource.data.fecha_sugerencia_finalizacion == request.time
+            && request.resource.data.uid_edil_revision_finalizacion == request.auth.uid
+          )
+        )
+        && (
+          request.resource.data.get('finalizacion_estado', null) != 'Rechazada'
+          || resource.data.get('finalizacion_estado', null) == 'Rechazada'
+          || stringNoVacio(request.resource.data.finalizacion_sugerencia_correccion, 1000)
+        );
+    }
+
+    function solicitudActualizacionEdilValida() {
+      return esEdil()
+        && request.resource.data.keys().hasOnly(camposSolicitudInicial())
+        && solicitudBaseNoCambia()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposEditablesSolicitudEdil())
+        && estadoTramiteValido(request.resource.data.estado)
+        && estadoFinalizacionValido(request.resource.data)
+        && stringOpcional(request.resource.data, 'sugerencia_correccion', 1000)
+        && stringOpcional(request.resource.data, 'finalizacion_sugerencia_correccion', 1000)
+        && timestampOpcional(request.resource.data, 'fecha_resolucion')
+        && timestampOpcional(request.resource.data, 'fecha_sugerencia_correccion')
+        && timestampOpcional(request.resource.data, 'fecha_expedicion_finalizacion')
+        && timestampOpcional(request.resource.data, 'fecha_sugerencia_finalizacion')
+        && timestampActualSiCambia('fecha_resolucion')
+        && timestampActualSiCambia('fecha_expedicion_finalizacion')
+        && revisionInicialEdilValida()
+        && revisionFinalizacionEdilValida();
+    }
+
     function usuarioPerfilValido(data, userId) {
       return data.keys().hasOnly(camposUsuario())
         && data.keys().hasAll(camposBaseUsuario())
@@ -382,13 +533,16 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && request.resource.data.keys().hasOnly(camposSolicitudInicial())
-        && request.resource.data.keys().hasAll(camposSolicitudInicial())
+        && request.resource.data.keys().hasAll(camposSolicitudInicialRequeridos())
         && request.resource.data.uid_estudiante == request.auth.uid
         && request.resource.data.uid_estudiante is string
         && identidadSolicitudCoincideConPerfil(request.resource.data)
         && request.resource.data.estado == 'Pendiente'
         && request.resource.data.fecha_solicitud == request.time
         && request.resource.data.fecha_resolucion == null
+        && request.resource.data.get('sugerencia_correccion', null) == null
+        && request.resource.data.get('fecha_sugerencia_correccion', null) == null
+        && request.resource.data.get('uid_edil_revision', null) == null
         && request.resource.data.nombre_completo is string
         && request.resource.data.tipo_documento is string
         && request.resource.data.numero_documento is string
@@ -406,10 +560,13 @@ service cloud.firestore {
         && request.resource.data.finalizacion_estado == null
         && request.resource.data.fecha_solicitud_finalizacion == null
         && request.resource.data.fecha_expedicion_finalizacion == null
+        && request.resource.data.get('finalizacion_sugerencia_correccion', null) == null
+        && request.resource.data.get('fecha_sugerencia_finalizacion', null) == null
+        && request.resource.data.get('uid_edil_revision_finalizacion', null) == null
         && request.resource.data.documento_finalizacion_id == null
         && request.resource.data.documento_finalizacion_url == null;
 
-      allow update: if esEdil() || puedeSolicitarFinalizacion();
+      allow update: if solicitudActualizacionEdilValida() || puedeSolicitarFinalizacion();
       allow delete: if esEdil();
     }
 

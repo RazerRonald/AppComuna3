@@ -848,6 +848,7 @@ const AdminView = {
       </div>
 
       ${this._buildModalConfirmacion()}
+      ${this._buildModalRechazo()}
       ${this._buildModalCarta()}
     `;
 
@@ -948,6 +949,11 @@ const AdminView = {
                         aria-label="Expedir carta de finalización">
                   <i class="bi bi-file-earmark-plus"></i> Finalización
                 </button>
+                <button class="btn btn-sm btn-outline-danger btn-rechazar-finalizacion"
+                        data-id="${this._esc(t.id)}"
+                        aria-label="${i18n.admin.rechazarFinalizacion}">
+                  <i class="bi bi-x-lg"></i> ${i18n.admin.rechazarFinalizacion}
+                </button>
               ` : ''}
               ${t.finalizacion_estado === 'Expedida' && t.documento_finalizacion_url ? `
                 <a href="${this._esc(t.documento_finalizacion_url)}" target="_blank" rel="noopener noreferrer"
@@ -971,13 +977,8 @@ const AdminView = {
 
     tbody.querySelectorAll('.btn-rechazar-tramite').forEach((btn) => {
       btn.addEventListener('click', () => {
-        this._confirmar(i18n.admin.confirmarRechazar, async () => {
-          await ArchivoController.rechazar(btn.dataset.id, {
-            onLoading: () => {},
-            onSuccess: () => Toast.exito(i18n.admin.rechazadoOk),
-            onError:   (msg) => Toast.error(msg),
-          });
-        });
+        const tramite = tramites.find((t) => t.id === btn.dataset.id);
+        if (tramite) this._mostrarModalRechazo(tramite, 'inicial');
       });
     });
 
@@ -988,6 +989,127 @@ const AdminView = {
       });
     });
 
+    tbody.querySelectorAll('.btn-rechazar-finalizacion').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tramite = tramites.find((t) => t.id === btn.dataset.id);
+        if (tramite) this._mostrarModalRechazo(tramite, 'finalizacion');
+      });
+    });
+
+  },
+
+  /**
+   * Construye el modal para rechazar con sugerencias de correccion.
+   * @private
+   */
+  _buildModalRechazo() {
+    return `
+      <div class="modal fade modal-jal" id="modal-rechazo-tramite" tabindex="-1"
+           aria-labelledby="modal-rechazo-titulo" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modal-rechazo-titulo">${i18n.admin.modalRechazoTitulo}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <form id="form-rechazo-tramite" novalidate>
+                <p class="small text-muted mb-3" id="modal-rechazo-intro"></p>
+                <div class="mb-2">
+                  <label class="form-label" for="rechazo-sugerencia">${i18n.admin.sugerenciaCorreccionLabel}</label>
+                  <textarea
+                    class="form-control"
+                    id="rechazo-sugerencia"
+                    rows="5"
+                    maxlength="1000"
+                    required
+                    placeholder="${i18n.admin.sugerenciaCorreccionPlaceholder}"
+                  ></textarea>
+                  <div class="invalid-feedback">${i18n.admin.sugerenciaCorreccionRequerida}</div>
+                  <div class="form-text">${i18n.admin.sugerenciaCorreccionHelp}</div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${i18n.app.cancelar}</button>
+              <button type="submit" class="btn btn-danger" id="btn-confirmar-rechazo" form="form-rechazo-tramite">
+                <span id="btn-confirmar-rechazo-text">${i18n.admin.rechazar}</span>
+                <span id="btn-confirmar-rechazo-loading" class="d-none">
+                  <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  ${i18n.app.guardando}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Muestra el modal de rechazo y guarda la sugerencia correspondiente.
+   * @private
+   */
+  _mostrarModalRechazo(tramite, tipo) {
+    const modalEl = document.getElementById('modal-rechazo-tramite');
+    const tituloEl = document.getElementById('modal-rechazo-titulo');
+    const formActual = document.getElementById('form-rechazo-tramite');
+
+    if (!modalEl || !tituloEl || !formActual) return;
+
+    const esFinalizacion = tipo === 'finalizacion';
+    const form = formActual.cloneNode(true);
+    formActual.parentNode.replaceChild(form, formActual);
+
+    const textarea = form.querySelector('#rechazo-sugerencia');
+    const introEl = form.querySelector('#modal-rechazo-intro');
+    const sugerenciaActual = esFinalizacion
+      ? tramite.finalizacion_sugerencia_correccion
+      : tramite.sugerencia_correccion;
+
+    tituloEl.textContent = esFinalizacion
+      ? i18n.admin.modalRechazoFinalizacionTitulo
+      : i18n.admin.modalRechazoTitulo;
+
+    if (introEl) {
+      introEl.innerHTML = `${i18n.admin.sugerenciaCorreccionHelp}<br><strong>${this._esc(tramite.nombre_completo)}</strong>`;
+    }
+
+    if (textarea) {
+      textarea.value = sugerenciaActual || '';
+      textarea.classList.remove('is-invalid');
+      textarea.addEventListener('input', () => textarea.classList.remove('is-invalid'));
+    }
+
+    const bsModal = new window.bootstrap.Modal(modalEl);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const sugerencia = String(textarea?.value || '').trim().replace(/\s+/g, ' ');
+      if (!this._validarSugerenciaRechazo(textarea, sugerencia)) return;
+
+      const accion = esFinalizacion
+        ? ArchivoController.rechazarFinalizacion.bind(ArchivoController)
+        : ArchivoController.rechazar.bind(ArchivoController);
+
+      await accion(tramite.id, sugerencia, {
+        onLoading: (v) => this._setFormLoading('btn-confirmar-rechazo', v),
+        onSuccess: () => {
+          Toast.exito(esFinalizacion ? i18n.admin.finalizacionRechazadaOk : i18n.admin.rechazadoOk);
+          bsModal.hide();
+        },
+        onError: (msg) => Toast.error(msg),
+      });
+    });
+
+    modalEl.addEventListener('shown.bs.modal', () => textarea?.focus(), { once: true });
+    bsModal.show();
+  },
+
+  _validarSugerenciaRechazo(textarea, sugerencia) {
+    const valida = sugerencia.length > 0 && sugerencia.length <= 1000;
+    textarea?.classList.toggle('is-invalid', !valida);
+    return valida;
   },
 
   /**

@@ -330,7 +330,15 @@ const EstudianteView = {
         ${avisos.map((estado) => `
           <div class="solicitud-aviso ${estado.clase}">
             <i class="bi ${estado.icono}" aria-hidden="true"></i>
-            <span><strong>${this._esc(estado.label)}:</strong> ${this._esc(estado.mensaje)}</span>
+            <span>
+              <strong>${this._esc(estado.label)}:</strong> ${this._esc(estado.mensaje)}
+              ${estado.sugerencia ? `
+                <span class="solicitud-sugerencia d-block mt-2">
+                  <strong>${i18n.tramite.sugerenciaCorreccionTitulo}:</strong>
+                  ${this._esc(estado.sugerencia)}
+                </span>
+              ` : ''}
+            </span>
           </div>
         `).join('')}
       </div>
@@ -356,6 +364,7 @@ const EstudianteView = {
         label: i18n.tramite.cartaBarrial,
         titulo: i18n.tramite.rechazado,
         mensaje: i18n.tramite.rechazadoMsg,
+        sugerencia: tramite.sugerencia_correccion,
         icono: 'bi-x-circle',
         clase: 'estado-rechazado',
       };
@@ -393,6 +402,7 @@ const EstudianteView = {
         label: i18n.tramite.cartaFinalizacion,
         titulo: i18n.tramite.rechazado,
         mensaje: i18n.tramite.finalizacionRechazadaMsg,
+        sugerencia: tramite.finalizacion_sugerencia_correccion,
         icono: 'bi-x-circle',
         clase: 'estado-rechazado',
       };

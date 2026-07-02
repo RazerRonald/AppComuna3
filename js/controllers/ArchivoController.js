@@ -231,15 +231,57 @@ const ArchivoController = {
   },
 
   /**
-   * Rechaza una solicitud.
+   * Rechaza una solicitud y guarda la sugerencia de correccion.
    */
-  async rechazar(tramiteId, { onLoading, onSuccess, onError }) {
+  async rechazar(tramiteId, sugerenciaCorreccion, { onLoading, onSuccess, onError }) {
+    const sesion = AuthModel.getSesion();
+    const sugerencia = this._normalizarSugerenciaRevision(sugerenciaCorreccion);
+
+    if (!sesion) {
+      onError(i18n.auth.accesoDenegado);
+      return;
+    }
+
+    if (!this._sugerenciaRevisionValida(sugerencia)) {
+      onError(i18n.admin.sugerenciaCorreccionRequerida);
+      return;
+    }
+
     onLoading(true);
     try {
-      await ArchivoModel.actualizarEstado(tramiteId, ESTADOS_TRAMITE.RECHAZADO);
+      await ArchivoModel.rechazarTramite(tramiteId, sugerencia, sesion.uid);
       onSuccess();
     } catch (err) {
       console.error('[ArchivoController.rechazar]', err);
+      onError(i18n.admin.errorAccion);
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
+   * Rechaza una solicitud de carta de finalizacion y guarda la sugerencia.
+   */
+  async rechazarFinalizacion(tramiteId, sugerenciaCorreccion, { onLoading, onSuccess, onError }) {
+    const sesion = AuthModel.getSesion();
+    const sugerencia = this._normalizarSugerenciaRevision(sugerenciaCorreccion);
+
+    if (!sesion) {
+      onError(i18n.auth.accesoDenegado);
+      return;
+    }
+
+    if (!this._sugerenciaRevisionValida(sugerencia)) {
+      onError(i18n.admin.sugerenciaCorreccionRequerida);
+      return;
+    }
+
+    onLoading(true);
+    try {
+      await ArchivoModel.rechazarFinalizacion(tramiteId, sugerencia, sesion.uid);
+      onSuccess();
+    } catch (err) {
+      console.error('[ArchivoController.rechazarFinalizacion]', err);
       onError(i18n.admin.errorAccion);
     } finally {
       onLoading(false);
@@ -488,6 +530,14 @@ const ArchivoController = {
 
   _getCorreoCompartirDrive() {
     return AuthModel.getSesion()?.email || '';
+  },
+
+  _normalizarSugerenciaRevision(valor) {
+    return String(valor || '').trim().replace(/\s+/g, ' ');
+  },
+
+  _sugerenciaRevisionValida(valor) {
+    return valor.length > 0 && valor.length <= 1000;
   },
 
   /**

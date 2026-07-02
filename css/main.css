@@ -1112,6 +1112,11 @@ img {
 .solicitud-aviso.estado-rechazado { background: #fef2f2; color: #991b1b; }
 .solicitud-aviso.estado-neutral   { background: #f8fafc; color: #475569; }
 
+.solicitud-sugerencia {
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(153, 27, 27, 0.16);
+}
+
 @media (max-width: 575.98px) {
   .btn-toggle-solicitud span {
     display: none;
