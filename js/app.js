@@ -66,6 +66,23 @@ const RUTAS = {
   '#/admin/usuarios': { handler: () => AdminView.renderUsuarios(),       rolRequerido: ROLES.EDIL        },
 };
 
+const INACTIVIDAD_LIMITE_MS = 15 * 60 * 1000;
+const INACTIVIDAD_THROTTLE_MS = 1000;
+const EVENTOS_ACTIVIDAD = [
+  'click',
+  'keydown',
+  'mousemove',
+  'pointerdown',
+  'scroll',
+  'touchstart',
+];
+const OPCIONES_EVENTO_ACTIVIDAD = { capture: true, passive: true };
+
+let temporizadorInactividad = null;
+let eventosInactividadActivos = false;
+let ultimoRegistroActividad = 0;
+let cierrePorInactividadEnCurso = false;
+
 // ─── VISTA DE ERROR 404 ───────────────────────────────────────────────────
 function render404() {
   const root = document.getElementById('app-root');
@@ -99,6 +116,104 @@ function renderAccesoDenegado() {
 }
 
 // ─── ROUTER ───────────────────────────────────────────────────────────────
+
+// Control global de cierre de sesion por inactividad.
+function configurarCierrePorInactividad(sesion) {
+  if (!sesion) {
+    detenerCierrePorInactividad();
+    return;
+  }
+
+  registrarEventosInactividad();
+  reiniciarTemporizadorInactividad(true);
+}
+
+function registrarEventosInactividad() {
+  if (eventosInactividadActivos) return;
+
+  EVENTOS_ACTIVIDAD.forEach((evento) => {
+    window.addEventListener(evento, manejarActividadUsuario, OPCIONES_EVENTO_ACTIVIDAD);
+  });
+  document.addEventListener('visibilitychange', manejarCambioVisibilidad);
+  eventosInactividadActivos = true;
+}
+
+function removerEventosInactividad() {
+  if (!eventosInactividadActivos) return;
+
+  EVENTOS_ACTIVIDAD.forEach((evento) => {
+    window.removeEventListener(evento, manejarActividadUsuario, OPCIONES_EVENTO_ACTIVIDAD);
+  });
+  document.removeEventListener('visibilitychange', manejarCambioVisibilidad);
+  eventosInactividadActivos = false;
+}
+
+function manejarActividadUsuario() {
+  if (!AuthModel.getSesion() || cierrePorInactividadEnCurso) return;
+
+  const ahora = Date.now();
+  if (ahora - ultimoRegistroActividad < INACTIVIDAD_THROTTLE_MS) return;
+
+  reiniciarTemporizadorInactividad();
+}
+
+function manejarCambioVisibilidad() {
+  if (document.visibilityState !== 'visible') return;
+
+  const sesion = AuthModel.getSesion();
+  if (!sesion || cierrePorInactividadEnCurso) return;
+
+  const tiempoInactivo = Date.now() - ultimoRegistroActividad;
+  if (tiempoInactivo >= INACTIVIDAD_LIMITE_MS) {
+    cerrarSesionPorInactividad();
+    return;
+  }
+
+  reiniciarTemporizadorInactividad(true);
+}
+
+function reiniciarTemporizadorInactividad(forzar = false) {
+  if (!AuthModel.getSesion() || cierrePorInactividadEnCurso) return;
+
+  const ahora = Date.now();
+  if (!forzar && ahora - ultimoRegistroActividad < INACTIVIDAD_THROTTLE_MS) return;
+
+  ultimoRegistroActividad = ahora;
+  if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+  temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, INACTIVIDAD_LIMITE_MS);
+}
+
+function detenerCierrePorInactividad() {
+  if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+  temporizadorInactividad = null;
+  ultimoRegistroActividad = 0;
+  removerEventosInactividad();
+}
+
+async function cerrarSesionPorInactividad() {
+  if (!AuthModel.getSesion() || cierrePorInactividadEnCurso) return;
+
+  cierrePorInactividadEnCurso = true;
+  if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+  temporizadorInactividad = null;
+
+  await AuthController.logout({
+    onSuccess: () => {
+      Toast.info(i18n.auth.sesionCerradaInactividad);
+      window.location.hash = '#/login';
+      setTimeout(() => {
+        cierrePorInactividadEnCurso = false;
+        const sesionActual = AuthModel.getSesion();
+        if (sesionActual) configurarCierrePorInactividad(sesionActual);
+      }, 1000);
+    },
+    onError: (msg) => {
+      cierrePorInactividadEnCurso = false;
+      reiniciarTemporizadorInactividad(true);
+      Toast.error(msg);
+    },
+  });
+}
 
 /**
  * Procesa la ruta actual del hash de la URL y renderiza la vista correcta.
@@ -146,7 +261,9 @@ async function procesarRuta() {
   if (rolRequerido) {
     if (!sesion) {
       // No autenticado → redirigir a login
-      Toast.advertencia('Debes iniciar sesión para acceder a esta sección.');
+      if (!cierrePorInactividadEnCurso) {
+        Toast.advertencia('Debes iniciar sesión para acceder a esta sección.');
+      }
       window.location.hash = '#/login';
       return;
     }
@@ -236,6 +353,7 @@ function iniciarApp() {
 
   // 1. Observar estado de autenticación (restaura sesión si ya existe)
   const unsubAuth = AuthController.iniciarListener(async (sesion) => {
+    configurarCierrePorInactividad(sesion);
     // Al cambiar el estado de auth → re-procesar la ruta actual
     await procesarRuta();
   });
@@ -257,6 +375,7 @@ function iniciarApp() {
   // 4. Manejar cierre de la app (limpiar listeners)
   window.addEventListener('beforeunload', () => {
     unsubAuth();
+    detenerCierrePorInactividad();
     DriveConnectionBubble.destruir();
     try { AdminView.destruir(); }   catch (_) {}
     try { PublicoView.destruir(); } catch (_) {}

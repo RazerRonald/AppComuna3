@@ -62,6 +62,7 @@ export const i18n = {
     errorGenerico:     'Error al iniciar sesión. Intenta de nuevo.',
     cerrandoSesion:    'Cerrando sesión…',
     sesionCerrada:     'Sesión cerrada correctamente.',
+    sesionCerradaInactividad: 'Tu sesión se cerró por inactividad.',
     accesoDenegado:    'No tienes permiso para acceder a esta sección.',
     bienvenidoEdil:    '¡Bienvenido, Edil!',
     bienvenidoEstudiante: '¡Bienvenido!',
