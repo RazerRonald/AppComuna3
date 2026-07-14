@@ -212,6 +212,8 @@ img {
 .navbar-jal .navbar-toggler {
   border-color: rgba(255,255,255,.2);
   color: rgba(255,255,255,.8);
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .navbar-jal .navbar-toggler-icon {
@@ -272,12 +274,12 @@ img {
 /* ─── 6. HERO / CARRUSEL ─── */
 .hero-carousel {
   position: relative;
-  height: 520px;
+  height: clamp(320px, 45vw, 520px);
   overflow: hidden;
 }
 
 .hero-carousel .carousel-item {
-  height: 520px;
+  height: 100%;
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -367,27 +369,31 @@ img {
 
 .carousel-dots {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 4px;
+  right: 4px;
   display: flex;
-  gap: 8px;
+  gap: 0;
   z-index: 10;
 }
 
+/* El dot visible mide 8px, pero el botón ofrece un área táctil de 44x44px:
+   el padding forma parte del target y background-clip limita el color al dot. */
 .carousel-dot {
-  width: 8px;
-  height: 8px;
+  width: 44px;
+  height: 44px;
+  padding: 18px;
   border-radius: var(--radius-full);
   background: rgba(255,255,255,.4);
+  background-clip: content-box;
   cursor: pointer;
   transition: all var(--transition-base);
   border: none;
-  padding: 0;
 }
 
 .carousel-dot.active {
   background: white;
-  width: 24px;
+  background-clip: content-box;
+  width: 60px;
 }
 
 /* ─── 7. TARJETAS DE NOTICIAS ─── */
@@ -1019,6 +1025,23 @@ img {
   background: var(--color-surface);
 }
 
+/* Área táctil de los botones de acción en tablas: 44px en móvil (base),
+   compactos de nuevo en desktop donde se usa mouse. */
+.table-jal .btn-sm {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .table-jal .btn-sm {
+    min-width: 34px;
+    min-height: 31px;
+  }
+}
+
 /* ─── 15. BADGES DE ESTADO ─── */
 .badge-estado {
   font-family: var(--font-family);
@@ -1044,8 +1067,14 @@ img {
 }
 
 .btn-toggle-solicitud {
-  min-height: 32px;
+  min-height: 44px;
   white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .btn-toggle-solicitud {
+    min-height: 32px;
+  }
 }
 
 .solicitud-detalle:not([hidden]) {
@@ -1123,7 +1152,7 @@ img {
   }
 
   .btn-toggle-solicitud {
-    width: 34px;
+    width: 44px;
     padding-left: 0;
     padding-right: 0;
   }
@@ -1201,6 +1230,14 @@ img {
   justify-content: center;
   gap: 0.4rem;
   margin-bottom: 0.3rem;
+}
+
+/* Área táctil de ~44px para enlaces tel:/mailto: de las tarjetas de contacto,
+   compensada con margen negativo para no alterar el layout. */
+.card-contacto .contacto-info a {
+  display: inline-block;
+  padding: 0.7rem 0.25rem;
+  margin: -0.7rem -0.25rem;
 }
 
 /* ─── 17. TOAST NOTIFICATIONS ─── */
@@ -1332,6 +1369,14 @@ img {
 
 .page-hero .page-hero-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
   color: rgba(255,255,255,.3);
+}
+
+/* Amplía el área táctil de los enlaces del breadcrumb a ~44px de alto
+   sin alterar el layout (el margen negativo compensa el padding). */
+.page-hero .page-hero-breadcrumb .breadcrumb-item a {
+  display: inline-block;
+  padding: 0.75rem 0.4rem;
+  margin: -0.75rem -0.4rem;
 }
 
 /* ─── 19. MODAL PERSONALIZADO ─── */
@@ -1580,14 +1625,6 @@ img {
 
 /* ─── 27. RESPONSIVE ─── */
 @media (max-width: 768px) {
-  .hero-carousel {
-    height: 380px;
-  }
-
-  .hero-carousel .carousel-item {
-    height: 380px;
-  }
-
   .hero-carousel .carousel-content {
     padding: 1.5rem;
     max-width: 100%;
@@ -1607,14 +1644,6 @@ img {
 }
 
 @media (max-width: 576px) {
-  .hero-carousel {
-    height: 320px;
-  }
-
-  .hero-carousel .carousel-item {
-    height: 320px;
-  }
-
   .card-evento .evento-fecha-badge {
     float: none;
     display: inline-flex;
