@@ -162,7 +162,8 @@ img {
   border-bottom: 1px solid rgba(255,255,255,.07);
   height: var(--navbar-height);
   box-shadow: 0 4px 20px rgba(0,0,0,.35);
-  backdrop-filter: blur(10px);
+  /* Sin backdrop-filter: crea un containing block que rompe la geometria
+     del menu offcanvas (position: fixed) anidado en la navbar. */
   position: sticky;
   top: 0;
   z-index: 1040;
@@ -214,6 +215,34 @@ img {
   color: rgba(255,255,255,.8);
   min-width: 44px;
   min-height: 44px;
+}
+
+/* Menú móvil como barra lateral derecha (offcanvas) con fondo sólido.
+   En ≥992px Bootstrap (offcanvas-lg) lo integra como fila normal de la
+   navbar y estas reglas no aplican. */
+@media (max-width: 991.98px) {
+  .navbar-offcanvas {
+    --bs-offcanvas-width: min(20rem, 86vw);
+    background: var(--color-bg-nav);
+    border-left: 1px solid rgba(255,255,255,.08);
+    box-shadow: -12px 0 30px rgba(0,0,0,.45);
+  }
+
+  .navbar-offcanvas .offcanvas-header {
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    color: var(--color-text-white);
+    padding: 1rem 1.25rem;
+  }
+
+  .navbar-offcanvas .offcanvas-body {
+    padding: 1rem 1.25rem;
+  }
+
+  /* Targets táctiles cómodos dentro de la barra lateral */
+  .navbar-offcanvas .nav-link {
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.25rem;
+  }
 }
 
 .navbar-jal .navbar-toggler-icon {

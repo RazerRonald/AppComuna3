@@ -29,9 +29,26 @@ const Navbar = {
     const container = document.getElementById('app-navbar');
     if (!container) return;
 
+    this._limpiarOffcanvas();
     container.innerHTML = this._buildHTML(sesion, rutaActual, onLogout);
     this._bindEvents(sesion, onLogout);
     this._marcarActivo(rutaActual);
+  },
+
+  /**
+   * Desecha la instancia previa del offcanvas antes de re-renderizar la
+   * navbar. Sin esto, el backdrop y el bloqueo de scroll del body quedan
+   * huérfanos cuando el router reemplaza el HTML con el menú abierto.
+   *
+   * @private
+   */
+  _limpiarOffcanvas() {
+    const prev = document.getElementById('navbarMain');
+    const inst = prev && window.bootstrap?.Offcanvas?.getInstance?.(prev);
+    if (inst) inst.dispose();
+    document.querySelectorAll('.offcanvas-backdrop').forEach((el) => el.remove());
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
   },
 
   /**
@@ -111,24 +128,39 @@ const Navbar = {
           <!-- Toggler móvil -->
           <button class="navbar-toggler border-0"
                   type="button"
-                  data-bs-toggle="collapse"
+                  data-bs-toggle="offcanvas"
                   data-bs-target="#navbarMain"
                   aria-controls="navbarMain"
-                  aria-expanded="false"
-                  aria-label="Alternar navegación">
+                  aria-label="Abrir menú de navegación">
             <span class="navbar-toggler-icon"></span>
           </button>
 
-          <!-- Links -->
-          <div class="collapse navbar-collapse" id="navbarMain">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-              ${linksPublicos}
-              ${linksExtra}
-            </ul>
+          <!-- Links: barra lateral derecha en móvil (offcanvas), fila normal
+               de la navbar en escritorio (≥lg lo gestiona Bootstrap). -->
+          <div class="offcanvas-lg offcanvas-end navbar-offcanvas"
+               tabindex="-1"
+               id="navbarMain"
+               aria-labelledby="navbarMainLabel">
+            <div class="offcanvas-header">
+              <span class="offcanvas-title fw-800" id="navbarMainLabel">
+                <i class="bi bi-building-fill-check me-1"></i> JAL Manrique
+              </span>
+              <button type="button"
+                      class="btn-close btn-close-white"
+                      data-bs-dismiss="offcanvas"
+                      data-bs-target="#navbarMain"
+                      aria-label="Cerrar menú"></button>
+            </div>
+            <div class="offcanvas-body">
+              <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                ${linksPublicos}
+                ${linksExtra}
+              </ul>
 
-            <!-- Acción derecha -->
-            <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
-              ${accionDerecha}
+              <!-- Acción derecha -->
+              <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+                ${accionDerecha}
+              </div>
             </div>
           </div>
         </div>
@@ -245,6 +277,15 @@ const Navbar = {
     if (btnLogout && onLogout) {
       btnLogout.addEventListener('click', () => onLogout());
     }
+
+    // Cerrar la barra lateral al navegar desde ella (en escritorio no hay
+    // instancia de Offcanvas, por lo que hide() simplemente no aplica).
+    const offcanvasEl = document.getElementById('navbarMain');
+    offcanvasEl?.addEventListener('click', (e) => {
+      if (e.target.closest('a.nav-link, a.dropdown-item, #btn-logout-nav')) {
+        window.bootstrap?.Offcanvas?.getInstance?.(offcanvasEl)?.hide();
+      }
+    });
   },
 
   /**

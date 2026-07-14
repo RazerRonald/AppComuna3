@@ -101,6 +101,10 @@ async function auditarPagina(page) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) return;
 
+      // Los elementos ocultos estacionados fuera de pantalla (p. ej. un
+      // offcanvas cerrado con translateX(100%)) no son un problema de layout.
+      if (getComputedStyle(el).visibility === 'hidden') return;
+
       // Elementos que exceden el viewport horizontal (scroll intencional excluido)
       if ((r.right > vw + 1 || r.left < -1) && !el.closest('.table-responsive')) {
         fuera.push(`${descripcion(el)} [${Math.round(r.left)}, ${Math.round(r.right)}]`);
