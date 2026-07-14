@@ -19,3 +19,8 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Reportes de verificacion responsive (generados por tests/responsive)
+reports/
+tests/responsive/node_modules/
+tests/responsive/package-lock.json
