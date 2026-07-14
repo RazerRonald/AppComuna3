@@ -23,11 +23,21 @@
 
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Cargar tests/responsive/.env (ignorado por git) sin dependencias externas.
+// Las variables ya definidas en el entorno tienen prioridad.
+const envFile = join(__dirname, '.env');
+if (existsSync(envFile)) {
+  for (const linea of readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const m = linea.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
+  }
+}
 const REPO_ROOT = resolve(__dirname, '..', '..');
 const REPORTS_DIR = join(REPO_ROOT, 'reports');
 const SCREENSHOTS_DIR = join(REPORTS_DIR, 'screenshots');
@@ -39,12 +49,12 @@ const BASE_URL = process.env.BASE_URL || `http://127.0.0.1:${PORT}`;
 
 const CREDENCIALES = {
   edil: {
-    email: process.env.JAL_EDIL_EMAIL || 'esteban@gmail.com',
-    password: process.env.JAL_EDIL_PASSWORD || '123456.',
+    email: process.env.JAL_EDIL_EMAIL,
+    password: process.env.JAL_EDIL_PASSWORD,
   },
   estudiante: {
-    email: process.env.JAL_ESTUDIANTE_EMAIL || 'ronaldbricenosilva@gmail.com',
-    password: process.env.JAL_ESTUDIANTE_PASSWORD || '12345.',
+    email: process.env.JAL_ESTUDIANTE_EMAIL,
+    password: process.env.JAL_ESTUDIANTE_PASSWORD,
   },
 };
 
@@ -218,6 +228,15 @@ async function main() {
 
   try {
     for (const grupo of GRUPOS) {
+      if (grupo.rol !== 'publico') {
+        const cred = CREDENCIALES[grupo.rol];
+        if (!cred.email || !cred.password) {
+          console.warn(`\n⚠ Grupo "${grupo.rol}" omitido: faltan credenciales. ` +
+            'Copia tests/responsive/.env.example como .env o define las variables de entorno.');
+          fallosLayout++;
+          continue;
+        }
+      }
       const context = await browser.newContext({ reducedMotion: 'reduce' });
       try {
       const page = await context.newPage();

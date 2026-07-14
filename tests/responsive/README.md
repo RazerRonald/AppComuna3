@@ -31,12 +31,20 @@ BASE_URL=http://localhost:5500 npm run check
 
 ## Credenciales
 
-Las rutas protegidas requieren sesión. Por defecto usa las cuentas de prueba
-del proyecto; se pueden sobreescribir por entorno:
+Las rutas protegidas requieren sesión. Copia `.env.example` como `.env`
+(ignorado por git) y completa las cuentas de prueba:
+
+```bash
+cp .env.example .env
+```
+
+También se pueden pasar como variables de entorno (tienen prioridad sobre `.env`):
 
 ```bash
 JAL_EDIL_EMAIL=... JAL_EDIL_PASSWORD=... JAL_ESTUDIANTE_EMAIL=... JAL_ESTUDIANTE_PASSWORD=... npm run check
 ```
+
+Sin credenciales, los grupos protegidos se omiten y el script termina con código 1.
 
 ## Salida
 
