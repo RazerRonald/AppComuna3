@@ -15,7 +15,9 @@ import { i18n }          from '../config/i18n.js';
 /** Datos del carrusel hero (estáticos, de la JAL) */
 const SLIDES_HERO = [
   {
-    imgUrl:      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Medell%C3%ADn_Colombia.jpg/1280px-Medell%C3%ADn_Colombia.jpg',
+    // Special:FilePath redirige a la ubicacion vigente del archivo, por lo
+    // que sobrevive a re-subidas (los thumbs con hash /9/91/ ya no existen).
+    imgUrl:      'https://commons.wikimedia.org/wiki/Special:FilePath/Medell%C3%ADn_Colombia.jpg?width=1280',
     tag:         'Portal Oficial',
     titulo:      'Junta Administradora Local — Comuna 3 Manrique',
     descripcion: 'Trabajando por el bienestar, la participación y el desarrollo de nuestra comunidad.',
@@ -23,7 +25,9 @@ const SLIDES_HERO = [
     ctaTexto:    'Ver Noticias',
   },
   {
-    imgUrl:      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Barrio_Manrique_-_Medellin.jpg/1280px-Barrio_Manrique_-_Medellin.jpg',
+    // El archivo original "Barrio Manrique - Medellin.jpg" fue eliminado de
+    // Commons; se usa una foto vigente tomada en la 45 de Manrique.
+    imgUrl:      'https://commons.wikimedia.org/wiki/Special:FilePath/Empieza_a_llover_en_Medellin_desde_la_45_Manrique_-_panoramio.jpg?width=1280',
     tag:         'Trámites',
     titulo:      'Carta Barrial para Estudiantes',
     descripcion: 'Solicita tu Carta Barrial de manera fácil y rápida a través de nuestro portal.',

@@ -116,11 +116,13 @@ const Carousel = {
              aria-roledescription="slide"
              aria-label="Diapositiva ${i + 1} de ${slides.length}">
 
-          <!-- Fondo -->
+          <!-- Fondo: siempre eager — Chrome nunca dispara loading="lazy" en
+               slides apilados con opacity 0, y el autoplay los necesita ya
+               cargados antes del crossfade. -->
           <img src="${imgUrl}"
                alt="${titulo}"
                class="carousel-bg"
-               loading="${i === 0 ? 'eager' : 'lazy'}"
+               loading="eager"
                onerror="this.style.display='none'" />
 
           <!-- Overlay oscuro -->

@@ -272,14 +272,20 @@ img {
 .role-badge-estudiante { background: rgba(16,185,129,.2); color: #10b981; }
 
 /* ─── 6. HERO / CARRUSEL ─── */
+/* El alto es un minimo fluido: si el contenido de un slide es mas alto
+   (titulos largos en pantallas angostas), el hero crece y nada se recorta. */
+:root {
+  --hero-min-h: clamp(320px, 45vw, 520px);
+}
+
 .hero-carousel {
   position: relative;
-  height: clamp(320px, 45vw, 520px);
+  min-height: var(--hero-min-h);
   overflow: hidden;
+  background: var(--color-bg-nav);
 }
 
 .hero-carousel .carousel-item {
-  height: 100%;
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -293,7 +299,11 @@ img {
   position: relative;
 }
 
+/* La imagen de fondo se saca del flujo: el alto del slide activo lo define
+   su contenido, y la imagen cubre lo que resulte. */
 .hero-carousel .carousel-bg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -310,12 +320,16 @@ img {
   );
 }
 
+/* Contenido en flujo normal (define el alto del slide) y alineado al
+   inicio: el tag y el boton CTA miden segun su texto, no todo el ancho. */
 .hero-carousel .carousel-content {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: flex-start;
+  min-height: var(--hero-min-h);
   padding: 3rem;
   max-width: 700px;
 }
