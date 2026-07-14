@@ -101,8 +101,9 @@ const Navbar = {
             <i class="bi bi-file-earmark-text me-1"></i>${i18n.nav.miTramite}
           </a>
         </li>
+        ${this._buildItemCerrarSesion()}
       `;
-      accionDerecha = this._buildDropdownPerfil(sesion, 'estudiante');
+      accionDerecha = this._buildBotonPerfil(sesion, 'estudiante');
     } else if (sesion.rol === ROLES.EDIL) {
       // ─── Edil ─────────────────────────────────────────────────────
       linksExtra = `
@@ -111,8 +112,9 @@ const Navbar = {
             <i class="bi bi-speedometer2 me-1"></i>${i18n.nav.panelAdmin}
           </a>
         </li>
+        ${this._buildItemCerrarSesion()}
       `;
-      accionDerecha = this._buildDropdownPerfil(sesion, 'edil');
+      accionDerecha = this._buildBotonPerfil(sesion, 'edil');
     }
 
     return `
@@ -169,72 +171,51 @@ const Navbar = {
   },
 
   /**
-   * Construye el dropdown de perfil para usuarios autenticados.
+   * Construye el botón de perfil para usuarios autenticados: avatar con
+   * iniciales + nombre + rol, que navega directamente a #/perfil.
+   * Las demás acciones (Trámites/Panel Admin y Cerrar Sesión) viven como
+   * opciones del menú principal.
    *
    * @private
    * @param {Object} sesion
    * @param {'edil'|'estudiante'} tipo
-   * @returns {string} HTML del dropdown
+   * @returns {string} HTML del botón de perfil
    */
-  _buildDropdownPerfil(sesion, tipo) {
+  _buildBotonPerfil(sesion, tipo) {
     const badgeClass  = tipo === 'edil' ? 'role-badge-edil' : 'role-badge-estudiante';
     const badgeTexto  = tipo === 'edil' ? 'Edil' : 'Estudiante';
     const iniciales   = this._esc(this._obtenerIniciales(sesion.nombre));
     const nombre      = this._esc(sesion.nombre);
-    const email       = this._esc(sesion.email);
 
     return `
-      <div class="dropdown">
-        <button class="btn d-flex align-items-center gap-2 text-white border-0 p-0"
-                type="button"
-                id="dropdownPerfil"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                aria-label="Menú de perfil">
-          <div style="
-            width:34px;height:34px;border-radius:50%;
-            background:linear-gradient(135deg,var(--color-primary),var(--color-primary-light));
-            display:flex;align-items:center;justify-content:center;
-            font-size:0.75rem;font-weight:700;color:white;flex-shrink:0;
-          ">${iniciales}</div>
-          <div class="d-none d-lg-flex flex-column align-items-start">
-            <span style="font-size:0.8rem;font-weight:600;color:white;line-height:1.2;">${nombre}</span>
-            <span class="role-badge ${badgeClass}">${badgeTexto}</span>
-          </div>
-          <i class="bi bi-chevron-down text-white-50" style="font-size:0.7rem;"></i>
-        </button>
+      <a class="nav-perfil-btn d-flex align-items-center gap-2 text-white"
+         href="#/perfil"
+         id="nav-perfil"
+         aria-label="Ir a mi perfil: ${nombre}">
+        <div class="nav-perfil-avatar" aria-hidden="true">${iniciales}</div>
+        <!-- En 992-1199px solo se muestra el avatar: con los ítems nuevos
+             del menú, el nombre completo desborda la navbar en 1024px. -->
+        <div class="d-flex d-lg-none d-xl-flex flex-column align-items-start">
+          <span class="nav-perfil-nombre">${nombre}</span>
+          <span class="role-badge ${badgeClass}">${badgeTexto}</span>
+        </div>
+      </a>
+    `;
+  },
 
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownPerfil">
-          <li>
-            <span class="dropdown-item-text text-white-50" style="font-size:0.75rem;padding:0.4rem 1rem;">
-              ${email}
-            </span>
-          </li>
-          <li><hr class="dropdown-divider" style="border-color:rgba(255,255,255,.1);margin:0.25rem 0;"></li>
-          <li>
-            <a class="dropdown-item" href="#/perfil" id="dropdown-perfil-link">
-              <i class="bi bi-person-circle me-2"></i>${i18n.nav.perfil}
-            </a>
-          </li>
-          ${tipo === 'edil' ? `
-          <li>
-            <a class="dropdown-item" href="#/admin" id="dropdown-admin">
-              <i class="bi bi-speedometer2 me-2"></i>${i18n.nav.panelAdmin}
-            </a>
-          </li>` : `
-          <li>
-            <a class="dropdown-item" href="#/tramite" id="dropdown-tramite">
-              <i class="bi bi-file-earmark-text me-2"></i>${i18n.nav.miTramite}
-            </a>
-          </li>`}
-          <li><hr class="dropdown-divider" style="border-color:rgba(255,255,255,.1);margin:0.25rem 0;"></li>
-          <li>
-            <button class="dropdown-item text-danger-emphasis" id="btn-logout-nav" type="button">
-              <i class="bi bi-box-arrow-right me-2"></i>${i18n.nav.cerrarSesion}
-            </button>
-          </li>
-        </ul>
-      </div>
+  /**
+   * Construye el ítem "Cerrar Sesión" del menú principal.
+   *
+   * @private
+   * @returns {string}
+   */
+  _buildItemCerrarSesion() {
+    return `
+      <li class="nav-item">
+        <button class="nav-link nav-link-logout" id="btn-logout-nav" type="button">
+          <i class="bi bi-box-arrow-right me-1"></i>${i18n.nav.cerrarSesion}
+        </button>
+      </li>
     `;
   },
 
@@ -282,7 +263,7 @@ const Navbar = {
     // instancia de Offcanvas, por lo que hide() simplemente no aplica).
     const offcanvasEl = document.getElementById('navbarMain');
     offcanvasEl?.addEventListener('click', (e) => {
-      if (e.target.closest('a.nav-link, a.dropdown-item, #btn-logout-nav')) {
+      if (e.target.closest('a.nav-link, #nav-perfil, #btn-logout-nav')) {
         window.bootstrap?.Offcanvas?.getInstance?.(offcanvasEl)?.hide();
       }
     });

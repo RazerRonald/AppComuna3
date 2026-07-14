@@ -198,6 +198,9 @@ img {
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   letter-spacing: 0.02em;
+  /* Etiquetas cortas: evita que flexbox parta "icono + texto" en dos
+     líneas por redondeo subpíxel al repartir el ancho de la fila. */
+  white-space: nowrap;
 }
 
 .navbar-jal .nav-link:hover,
@@ -215,6 +218,21 @@ img {
   color: rgba(255,255,255,.8);
   min-width: 44px;
   min-height: 44px;
+}
+
+/* En escritorio el offcanvas reemplaza a la antigua .navbar-collapse, que
+   era flex-grow: 1 con contenido centrado verticalmente. Sin el grow, el
+   contenedor se encoge y los enlaces se parten en dos líneas; sin el
+   centrado, el botón de perfil (más alto) estira los enlaces de la fila. */
+@media (min-width: 992px) {
+  .navbar-offcanvas {
+    flex-grow: 1;
+  }
+
+  .navbar-offcanvas .offcanvas-body {
+    align-items: center;
+    width: 100%;
+  }
 }
 
 /* Menú móvil como barra lateral derecha (offcanvas) con fondo sólido.
@@ -299,6 +317,56 @@ img {
 
 .role-badge-edil      { background: rgba(245,158,11,.2); color: #f59e0b; }
 .role-badge-estudiante { background: rgba(16,185,129,.2); color: #10b981; }
+
+/* Botón de perfil: el nombre del usuario navega directo a #/perfil */
+.navbar-jal .nav-perfil-btn {
+  padding: 0.35rem 0.75rem 0.35rem 0.4rem;
+  min-height: 44px;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+
+.navbar-jal .nav-perfil-btn:hover,
+.navbar-jal .nav-perfil-btn:focus-visible {
+  background: rgba(255,255,255,.1);
+}
+
+.navbar-jal .nav-perfil-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.navbar-jal .nav-perfil-nombre {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  line-height: 1.2;
+}
+
+/* Ítem "Cerrar Sesión" del menú: acción destructiva en rojo */
+.navbar-jal .nav-link-logout {
+  color: #f87171 !important;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.navbar-jal .nav-link-logout:hover,
+.navbar-jal .nav-link-logout:focus-visible {
+  color: #fca5a5 !important;
+  background: rgba(239,68,68,.15);
+}
 
 /* ─── 6. HERO / CARRUSEL ─── */
 /* El alto es un minimo fluido: si el contenido de un slide es mas alto
