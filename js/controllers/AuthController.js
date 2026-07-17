@@ -212,7 +212,7 @@ const AuthController = {
       return;
     }
 
-    if (passwordNueva.length < 6) {
+    if (passwordNueva.length < 10) {
       onError(i18n.auth.passwordNuevaCorta);
       return;
     }
@@ -324,7 +324,7 @@ const AuthController = {
       return i18n.admin.usuariosCamposRequeridos;
     }
 
-    if (password.length < 6) {
+    if (password.length < 10) {
       return i18n.admin.usuariosPasswordCorta;
     }
 
@@ -338,7 +338,7 @@ const AuthController = {
   _validarPasswordEdicion(password, confirmarPassword) {
     if (!password && !confirmarPassword) return null;
 
-    if (password.length < 6) {
+    if (password.length < 10) {
       return i18n.admin.usuariosPasswordCorta;
     }
 

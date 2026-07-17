@@ -499,8 +499,8 @@ module.exports = async function handler(req, res) {
     }
 
     const password = body.password ? String(body.password) : '';
-    if (password && password.length < 6) {
-      sendError(res, 400, 'WEAK_PASSWORD', 'La contrasena debe tener al menos 6 caracteres');
+    if (password && password.length < 10) {
+      sendError(res, 400, 'WEAK_PASSWORD', 'La contrasena debe tener al menos 10 caracteres');
       return;
     }
 
