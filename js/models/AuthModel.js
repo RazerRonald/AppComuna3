@@ -16,12 +16,16 @@ import {
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  EmailAuthProvider,
   getAuth,
   inMemoryPersistence,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   updateProfile,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
@@ -280,6 +284,46 @@ const AuthModel = {
 
     _sesionActual = this._usuarioASesion(usuario);
     return _sesionActual;
+  },
+
+  /**
+   * Envia un correo oficial de Firebase para restablecer la contrasena de una
+   * cuenta. No requiere sesion activa de esa cuenta y no expone credenciales.
+   *
+   * @param {string} email
+   * @returns {Promise<void>}
+   */
+  async enviarResetPassword(email) {
+    const correo = this._normalizarEmail(email);
+    if (!correo) {
+      throw this._crearError('auth/email-unavailable');
+    }
+    await sendPasswordResetEmail(auth, correo);
+  },
+
+  /**
+   * Cambia la contrasena de la cuenta autenticada. La reautenticacion evita
+   * que una sesion abierta permita cambiarla sin conocer la clave actual.
+   *
+   * @param {string} passwordActual
+   * @param {string} passwordNueva
+   * @returns {Promise<void>}
+   */
+  async cambiarPasswordPropia(passwordActual, passwordNueva) {
+    const usuario = auth.currentUser;
+    const sesion = this.getSesion();
+    if (!usuario || !sesion || usuario.uid !== sesion.uid) {
+      throw this._crearError('auth/unauthorized');
+    }
+
+    const email = this._normalizarEmail(usuario.email || sesion.email);
+    if (!email) {
+      throw this._crearError('auth/email-unavailable');
+    }
+
+    const credencial = EmailAuthProvider.credential(email, passwordActual);
+    await reauthenticateWithCredential(usuario, credencial);
+    await updatePassword(usuario, passwordNueva);
   },
 
   /**

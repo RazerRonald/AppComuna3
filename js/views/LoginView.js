@@ -114,6 +114,23 @@ const LoginView = {
             </button>
           </form>
 
+          <div class="text-center mt-3">
+            <button type="button"
+                    id="btn-forgot-password"
+                    class="btn btn-link btn-sm p-0 text-decoration-none"
+                    aria-label="${i18n.auth.olvidastePassword}">
+              ${i18n.auth.olvidastePassword}
+            </button>
+          </div>
+
+          <div class="login-access-request mt-3 pt-3">
+            <a href="#/solicitar-acceso"
+               class="btn-jal-secondary w-100 d-flex align-items-center justify-content-center gap-2"
+               aria-label="${i18n.solicitudAcceso.btnSolicitar}">
+              <i class="bi bi-person-plus" aria-hidden="true"></i>${i18n.solicitudAcceso.btnSolicitar}
+            </a>
+          </div>
+
           <!-- Footer de la card -->
           <div class="mt-4 text-center">
             <p style="color:rgba(255,255,255,.35);font-size:0.75rem;">
@@ -153,6 +170,25 @@ const LoginView = {
     // Limpiar error al escribir
     document.getElementById('login-email')?.addEventListener('input', () => this._ocultarError());
     document.getElementById('login-password')?.addEventListener('input', () => this._ocultarError());
+
+    // Restablecer contraseña (autoservicio)
+    document.getElementById('btn-forgot-password')?.addEventListener('click', () => this._handleForgotPassword());
+  },
+
+  /**
+   * Envía el correo de restablecimiento de contraseña usando el correo escrito
+   * en el formulario. No revela si la cuenta existe (privacidad).
+   *
+   * @private
+   */
+  async _handleForgotPassword() {
+    const email = document.getElementById('login-email')?.value;
+
+    await AuthController.enviarCorreoRestablecerPassword(email, {
+      onLoading: (cargando) => this._setLoading(cargando),
+      onSuccess: () => Toast.info(i18n.auth.resetEnviado),
+      onError: (mensaje) => this._mostrarError(mensaje),
+    });
   },
 
   /**

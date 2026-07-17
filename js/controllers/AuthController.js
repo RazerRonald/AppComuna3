@@ -177,6 +177,69 @@ const AuthController = {
   },
 
   /**
+   * Solicita el envio del correo de restablecimiento de contrasena. Se usa
+   * tanto en el flujo de aprobacion de solicitudes como en la recuperacion
+   * autoservicio desde el login. Por privacidad no revela si el correo existe.
+   */
+  async enviarCorreoRestablecerPassword(email, { onLoading, onSuccess, onError } = {}) {
+    if (!email?.trim() || !EMAIL_RE.test(email.trim())) {
+      onError?.(i18n.auth.resetIngresaCorreo);
+      return;
+    }
+
+    onLoading?.(true);
+    try {
+      await AuthModel.enviarResetPassword(email.trim());
+      onSuccess?.();
+    } catch (err) {
+      console.error('[AuthController.enviarCorreoRestablecerPassword]', err);
+      onError?.(this._mapearErrorFirebase(err.code || err.message));
+    } finally {
+      onLoading?.(false);
+    }
+  },
+
+  /**
+   * Cambia la contrasena exclusivamente para la cuenta autenticada.
+   */
+  async cambiarPasswordPropia(datos, { onLoading, onSuccess, onError }) {
+    const passwordActual = String(datos?.passwordActual || '');
+    const passwordNueva = String(datos?.passwordNueva || '');
+    const confirmarPassword = String(datos?.confirmarPassword || '');
+
+    if (!passwordActual || !passwordNueva || !confirmarPassword) {
+      onError(i18n.auth.passwordCamposRequeridos);
+      return;
+    }
+
+    if (passwordNueva.length < 6) {
+      onError(i18n.auth.passwordNuevaCorta);
+      return;
+    }
+
+    if (passwordNueva !== confirmarPassword) {
+      onError(i18n.auth.passwordNuevaNoCoincide);
+      return;
+    }
+
+    if (passwordActual === passwordNueva) {
+      onError(i18n.auth.passwordNuevaIgual);
+      return;
+    }
+
+    onLoading(true);
+    try {
+      await AuthModel.cambiarPasswordPropia(passwordActual, passwordNueva);
+      onSuccess();
+    } catch (err) {
+      console.error('[AuthController.cambiarPasswordPropia]', err);
+      onError(this._mapearErrorCambioPassword(err.code || err.message));
+    } finally {
+      onLoading(false);
+    }
+  },
+
+  /**
    * Cierra la sesion del usuario.
    */
   async logout({ onSuccess, onError }) {
@@ -319,6 +382,21 @@ const AuthController = {
       'WEAK_PASSWORD':               i18n.admin.usuariosPasswordCorta,
     };
     return mapa[codigo] || i18n.auth.errorGenerico;
+  },
+
+  _mapearErrorCambioPassword(codigo) {
+    const mapa = {
+      'auth/invalid-credential':     i18n.auth.passwordActualIncorrecta,
+      'auth/wrong-password':         i18n.auth.passwordActualIncorrecta,
+      'auth/user-mismatch':          i18n.auth.passwordActualIncorrecta,
+      'auth/weak-password':          i18n.auth.passwordNuevaCorta,
+      'auth/requires-recent-login':  i18n.auth.passwordReautenticacion,
+      'auth/too-many-requests':      i18n.auth.passwordDemasiadosIntentos,
+      'auth/network-request-failed': i18n.auth.errorRed,
+      'auth/unauthorized':           i18n.auth.accesoDenegado,
+      'auth/email-unavailable':      i18n.auth.passwordEmailNoDisponible,
+    };
+    return mapa[codigo] || i18n.auth.passwordError;
   },
 };
 
