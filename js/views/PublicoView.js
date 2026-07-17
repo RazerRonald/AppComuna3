@@ -301,6 +301,7 @@ const PublicoView = {
             </div>
           </div>
         `;
+        this._aplicarFondosBlur(container);
       },
       onError: (msg) => {
         const container = document.getElementById('noticia-detalle-content');
@@ -496,6 +497,7 @@ const PublicoView = {
       return;
     }
     container.innerHTML = noticias.map((n) => this._buildNoticiaCard(n)).join('');
+    this._aplicarFondosBlur(container);
     this._bindNoticiasClick();
   },
 
@@ -529,6 +531,7 @@ const PublicoView = {
     }
 
     container.innerHTML = noticias.map((n) => this._buildNoticiaCard(n)).join('');
+    this._aplicarFondosBlur(container);
     this._bindNoticiasClick();
   },
 
@@ -685,8 +688,11 @@ const PublicoView = {
     }
 
     return `
+      <div class="card-img-blur"
+           data-bg="${this._esc(media.url)}"
+           aria-hidden="true"></div>
       <img src="${this._esc(media.url)}" alt="${titulo}" loading="lazy"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+           onerror="this.style.display='none';this.previousElementSibling.style.display='none';this.nextElementSibling.style.display='flex';">
       <div class="card-img-placeholder" style="display:none;"><i class="bi bi-image"></i></div>
       ${media.tipo === 'video' ? `
         <span class="card-media-video-badge">
@@ -718,10 +724,15 @@ const PublicoView = {
     }
 
     return `
-      <img src="${this._esc(media.url)}"
-           alt="${titulo}"
-           class="noticia-detail-img"
-           onerror="this.style.display='none'" />
+      <figure class="noticia-detail-figure">
+        <div class="noticia-detail-blur"
+             data-bg="${this._esc(media.url)}"
+             aria-hidden="true"></div>
+        <img src="${this._esc(media.url)}"
+             alt="${titulo}"
+             class="noticia-detail-img"
+             onerror="this.closest('figure').style.display='none'" />
+      </figure>
     `;
   },
 
@@ -1012,6 +1023,32 @@ const PublicoView = {
       hour:   '2-digit',
       minute: '2-digit',
     });
+  },
+
+  /**
+   * Asigna las imagenes de fondo (blur) por propiedad DOM en lugar de un
+   * atributo style inline. Evita que una comilla en la URL cierre el url() de
+   * CSS tras la re-decodificacion de entidades HTML del atributo (F7).
+   * @private
+   */
+  _aplicarFondosBlur(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-bg]').forEach((el) => {
+      const url = el.getAttribute('data-bg') || '';
+      el.removeAttribute('data-bg');
+      if (url) el.style.backgroundImage = `url("${this._escCssUrl(url)}")`;
+    });
+  },
+
+  /**
+   * Neutraliza una URL para usarla dentro de un string CSS entre comillas
+   * dobles asignado por propiedad DOM (sin re-decodificacion HTML).
+   * @private
+   */
+  _escCssUrl(url) {
+    return String(url ?? '')
+      .replace(/[\r\n]/g, '')
+      .replace(/[\\"]/g, '\\$&');
   },
 
   /**
