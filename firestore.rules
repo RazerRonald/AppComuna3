@@ -316,6 +316,82 @@ service cloud.firestore {
       return rol == 'estudiante' || rol == 'edil';
     }
 
+    function camposSolicitudAcceso() {
+      return [
+        'email',
+        'nombre',
+        'primer_apellido',
+        'segundo_apellido',
+        'tipo_documento',
+        'numero_documento',
+        'ciudad_documento',
+        'rol',
+        'estado',
+        'fecha_solicitud',
+        'fecha_respuesta',
+        'uid_edil_respuesta',
+        'uid_usuario_creado'
+      ];
+    }
+
+    function solicitudAccesoDatosValidos(data) {
+      return data.keys().hasOnly(camposSolicitudAcceso())
+        && data.keys().hasAll(camposSolicitudAcceso())
+        && stringNoVacio(data.email, 180)
+        && stringNoVacio(data.nombre, 80)
+        && stringNoVacio(data.primer_apellido, 80)
+        && stringNoVacio(data.segundo_apellido, 80)
+        && tipoDocumentoValido(data.tipo_documento)
+        && stringNoVacio(data.numero_documento, 30)
+        && data.numero_documento.size() >= 6
+        && stringNoVacio(data.ciudad_documento, 80)
+        && data.rol == 'estudiante';
+    }
+
+    function solicitudAccesoCreacionValida(data) {
+      return solicitudAccesoDatosValidos(data)
+        && data.estado == 'Pendiente'
+        && data.fecha_solicitud == request.time
+        && data.fecha_respuesta == null
+        && data.uid_edil_respuesta == null
+        && data.uid_usuario_creado == null;
+    }
+
+    function solicitudAccesoBaseNoCambia() {
+      return request.resource.data.email == resource.data.email
+        && request.resource.data.nombre == resource.data.nombre
+        && request.resource.data.primer_apellido == resource.data.primer_apellido
+        && request.resource.data.segundo_apellido == resource.data.segundo_apellido
+        && request.resource.data.tipo_documento == resource.data.tipo_documento
+        && request.resource.data.numero_documento == resource.data.numero_documento
+        && request.resource.data.ciudad_documento == resource.data.ciudad_documento
+        && request.resource.data.rol == resource.data.rol
+        && request.resource.data.fecha_solicitud == resource.data.fecha_solicitud;
+    }
+
+    function solicitudAccesoResolucionValida() {
+      return esEdil()
+        && solicitudAccesoDatosValidos(request.resource.data)
+        && resource.data.estado == 'Pendiente'
+        && solicitudAccesoBaseNoCambia()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'fecha_respuesta',
+          'uid_edil_respuesta',
+          'uid_usuario_creado'
+        ])
+        && (request.resource.data.estado == 'Aprobada'
+          || request.resource.data.estado == 'Rechazada')
+        && request.resource.data.fecha_respuesta == request.time
+        && request.resource.data.uid_edil_respuesta == request.auth.uid
+        && (
+          (request.resource.data.estado == 'Aprobada'
+            && stringNoVacio(request.resource.data.uid_usuario_creado, 128))
+          || (request.resource.data.estado == 'Rechazada'
+            && request.resource.data.uid_usuario_creado == null)
+        );
+    }
+
     function perfilSolicitante() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -463,13 +539,6 @@ service cloud.firestore {
         && !data.keys().hasAny(['actualizadoEn', 'actualizadoPor']);
     }
 
-    function usuarioAutoCreadoEstudianteValido(data, userId) {
-      return request.auth.uid == userId
-        && data.rol == 'estudiante'
-        && !data.keys().hasAny(['creadoPor'])
-        && usuarioCreacionValida(data, userId);
-    }
-
     function usuarioCreadoPorEdilValido(data, userId) {
       return esEdil()
         && request.auth.uid != userId
@@ -574,15 +643,25 @@ service cloud.firestore {
       allow read, write: if esEdil();
     }
 
+    match /solicitudes_acceso/{solicitudId} {
+      allow create: if request.auth == null
+        && solicitudAccesoCreacionValida(request.resource.data);
+
+      allow get, list: if esEdil();
+      allow update: if solicitudAccesoResolucionValida();
+      allow delete: if false;
+    }
+
     match /users/{userId} {
       allow read: if autenticado()
         && (request.auth.uid == userId || esEdil());
 
+      // Solo un Edil crea perfiles. Se elimina el auto-registro de perfil
+      // 'estudiante' para que el acceso pase siempre por el flujo de
+      // solicitud/aprobación y no se pueda saltar creando una cuenta de Auth
+      // directamente contra la API pública (F3, OWASP A01).
       allow create: if autenticado()
-        && (
-          usuarioAutoCreadoEstudianteValido(request.resource.data, userId)
-          || usuarioCreadoPorEdilValido(request.resource.data, userId)
-        );
+        && usuarioCreadoPorEdilValido(request.resource.data, userId);
 
       allow update: if esEdil()
         && usuarioActualizacionValida(request.resource.data, userId);
