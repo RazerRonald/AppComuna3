@@ -12,6 +12,7 @@ import EventoController   from '../controllers/EventoController.js';
 import ArchivoController  from '../controllers/ArchivoController.js';
 import AuthModel          from '../models/AuthModel.js';
 import AdminUsuariosView  from './AdminUsuariosView.js';
+import AdminSolicitudesAccesoView from './AdminSolicitudesAccesoView.js';
 import Toast              from '../components/Toast.js';
 import { i18n }           from '../config/i18n.js';
 import { ESTADOS_TRAMITE } from '../config/collections.js';
@@ -91,7 +92,7 @@ const AdminView = {
           <i class="bi bi-lightning-fill text-warning me-2"></i>Accesos Rápidos
         </h2>
         <div class="row g-4">
-          <div class="col-md-6 col-xl-3">
+          <div class="col-md-6 col-xl">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-noticias"
@@ -106,7 +107,7 @@ const AdminView = {
               </div>
             </button>
           </div>
-          <div class="col-md-6 col-xl-3">
+          <div class="col-md-6 col-xl">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-eventos"
@@ -121,7 +122,7 @@ const AdminView = {
               </div>
             </button>
           </div>
-          <div class="col-md-6 col-xl-3">
+          <div class="col-md-6 col-xl">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-tramites"
@@ -136,7 +137,7 @@ const AdminView = {
               </div>
             </button>
           </div>
-          <div class="col-md-6 col-xl-3">
+          <div class="col-md-6 col-xl">
             <button class="btn w-100 p-4 text-start form-jal"
                     style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
                     id="btn-admin-usuarios"
@@ -148,6 +149,21 @@ const AdminView = {
                   <div class="text-muted small">${i18n.admin.gestionUsuariosSub}</div>
                 </div>
                 <i class="bi bi-arrow-right ms-auto text-primary"></i>
+              </div>
+            </button>
+          </div>
+          <div class="col-md-6 col-xl">
+            <button class="btn w-100 p-4 text-start form-jal"
+                    style="cursor:pointer;border:2px solid var(--color-border);transition:all .25s;"
+                    id="btn-admin-solicitudes-acceso"
+                    aria-label="${i18n.solicitudAcceso.adminTitulo}">
+              <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon stat-icon-success"><i class="bi bi-person-check fs-4"></i></div>
+                <div>
+                  <div class="fw-700">${i18n.solicitudAcceso.adminTitulo}</div>
+                  <div class="text-muted small">${i18n.solicitudAcceso.adminSubtitulo}</div>
+                </div>
+                <i class="bi bi-arrow-right ms-auto text-success"></i>
               </div>
             </button>
           </div>
@@ -163,6 +179,9 @@ const AdminView = {
     document.getElementById('btn-admin-eventos')?.addEventListener('click',  () => this.renderEventos());
     document.getElementById('btn-admin-tramites')?.addEventListener('click', () => this.renderTramites());
     document.getElementById('btn-admin-usuarios')?.addEventListener('click', () => this.renderUsuarios());
+    document.getElementById('btn-admin-solicitudes-acceso')?.addEventListener('click', () => {
+      window.location.hash = '#/admin/solicitudes-acceso';
+    });
 
     // Suscribir contadores en tiempo real
     this._iniciarContadores();
@@ -176,6 +195,15 @@ const AdminView = {
   renderUsuarios() {
     AdminUsuariosView.render({
       onVolverDashboard: () => this.renderDashboard(),
+    });
+  },
+
+  /** Renderiza las solicitudes publicas de creacion de estudiantes. */
+  renderSolicitudesAcceso() {
+    AdminSolicitudesAccesoView.render({
+      onVolverDashboard: () => {
+        window.location.hash = '#/admin';
+      },
     });
   },
 
@@ -1703,6 +1731,7 @@ const AdminView = {
   destruir() {
     this._limpiarUnsubs();
     AdminUsuariosView.destruir();
+    AdminSolicitudesAccesoView.destruir();
   },
 };
 

@@ -21,6 +21,9 @@ export const COL_ARCHIVOS = 'info_carta_inicial';
 /** Coleccion privada con IDs y enlaces de cartas expedidas. Solo Edil. */
 export const COL_DOCUMENTOS_CARTAS = 'info_carta_documentos';
 
+/** Solicitudes publicas para crear accesos de estudiantes. */
+export const COL_SOLICITUDES_ACCESO = 'solicitudes_acceso';
+
 /**
  * Roles del sistema.
  * Deben coincidir exactamente con el valor del campo `rol` en Firestore.
@@ -36,6 +39,13 @@ export const ROLES = {
 
 /** Tipos de documento permitidos para perfiles de usuarios. */
 export const TIPOS_DOCUMENTO = ['CC', 'CE', 'PPT', 'PA'];
+
+/** Estados del flujo de solicitudes publicas de acceso. */
+export const ESTADOS_SOLICITUD_ACCESO = {
+  PENDIENTE: 'Pendiente',
+  APROBADA:  'Aprobada',
+  RECHAZADA: 'Rechazada',
+};
 
 /**
  * Estados posibles de un tramite estudiantil.

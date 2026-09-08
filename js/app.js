@@ -27,6 +27,7 @@ import PublicoView      from './views/PublicoView.js';
 import EstudianteView   from './views/EstudianteView.js';
 import AdminView        from './views/AdminView.js';
 import PerfilView       from './views/PerfilView.js';
+import SolicitudAccesoView from './views/SolicitudAccesoView.js';
 
 import { ROLES }        from './config/collections.js';
 import { i18n }         from './config/i18n.js';
@@ -51,6 +52,7 @@ function actualizarFooterYear() {
 // Para agregar una nueva ruta → añadir una entrada aquí (una línea).
 const RUTAS = {
   '#/login':    { handler: () => LoginView.render(),                     rolRequerido: null              },
+  '#/solicitar-acceso': { handler: () => SolicitudAccesoView.render(),   rolRequerido: null              },
   '#/inicio':   { handler: () => PublicoView.renderInicio(),             rolRequerido: null              },
   '#/noticias': { handler: () => PublicoView.renderNoticias(),           rolRequerido: null              },
   '#/eventos':  { handler: () => PublicoView.renderEventos(),            rolRequerido: null              },
@@ -64,6 +66,7 @@ const RUTAS = {
   '#/admin/eventos':  { handler: () => AdminView.renderEventos(),        rolRequerido: ROLES.EDIL        },
   '#/admin/tramites': { handler: () => AdminView.renderTramites(),       rolRequerido: ROLES.EDIL        },
   '#/admin/usuarios': { handler: () => AdminView.renderUsuarios(),       rolRequerido: ROLES.EDIL        },
+  '#/admin/solicitudes-acceso': { handler: () => AdminView.renderSolicitudesAcceso(), rolRequerido: ROLES.EDIL },
 };
 
 const INACTIVIDAD_LIMITE_MS = 15 * 60 * 1000;
@@ -281,7 +284,7 @@ async function procesarRuta() {
   }
 
   // ─── Si está en login y ya está autenticado → redirigir ───────────
-  if (hash === '#/login' && sesion) {
+  if (['#/login', '#/solicitar-acceso'].includes(hash) && sesion) {
     window.location.hash = AuthController.getRutaPorRol(sesion.rol);
     return;
   }
