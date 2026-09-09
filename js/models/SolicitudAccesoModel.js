@@ -5,21 +5,16 @@
  * @module models/SolicitudAccesoModel
  */
 
-import { db } from '../config/firebase.config.js';
+import { db, auth } from '../config/firebase.config.js';
+import { readApiResponse } from '../utils/apiResponse.js';
 import {
   COL_SOLICITUDES_ACCESO,
-  ESTADOS_SOLICITUD_ACCESO,
-  ROLES,
 } from '../config/collections.js';
 import {
-  addDoc,
   collection,
-  doc,
   onSnapshot,
   orderBy,
   query,
-  runTransaction,
-  serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const SolicitudAccesoModel = {
@@ -27,26 +22,11 @@ const SolicitudAccesoModel = {
    * Registra una solicitud publica. El estado y el rol no provienen de la UI.
    *
    * @param {Object} datos
-   * @returns {Promise<string>} ID de la solicitud creada.
+   * @param {string} captchaToken Token de verificacion de un solo uso.
+   * @returns {Promise<{ok: boolean}>} Confirmacion sin exponer datos de duplicados.
    */
-  async crear(datos) {
-    const solicitudRef = await addDoc(collection(db, COL_SOLICITUDES_ACCESO), {
-      email: datos.email,
-      nombre: datos.nombre,
-      primer_apellido: datos.primer_apellido,
-      segundo_apellido: datos.segundo_apellido,
-      tipo_documento: datos.tipo_documento,
-      numero_documento: datos.numero_documento,
-      ciudad_documento: datos.ciudad_documento,
-      rol: ROLES.ESTUDIANTE,
-      estado: ESTADOS_SOLICITUD_ACCESO.PENDIENTE,
-      fecha_solicitud: serverTimestamp(),
-      fecha_respuesta: null,
-      uid_edil_respuesta: null,
-      uid_usuario_creado: null,
-    });
-
-    return solicitudRef.id;
+  async crear(datos, captchaToken) {
+    return this._api('POST', { datos, captchaToken });
   },
 
   /**
@@ -73,34 +53,28 @@ const SolicitudAccesoModel = {
   },
 
   /**
-   * Resuelve una solicitud pendiente mediante una transaccion para impedir
-   * que dos sesiones de Edil cambien su resultado al mismo tiempo.
+   * Delega la resolucion y los reintentos al servidor autenticado.
    *
-   * @param {string} solicitudId
-   * @param {'Aprobada'|'Rechazada'} estado
-   * @param {string} uidEdil
-   * @param {string|null} uidUsuarioCreado
-   * @returns {Promise<void>}
+   * @param {string} id
+   * @param {'approve'|'reject'|'email'} action
+   * @returns {Promise<Object>}
    */
-  async resolver(solicitudId, estado, uidEdil, uidUsuarioCreado = null) {
-    const solicitudRef = doc(db, COL_SOLICITUDES_ACCESO, solicitudId);
+  async resolver(id, action) {
+    return this._api('PATCH', { id, action });
+  },
 
-    await runTransaction(db, async (transaction) => {
-      const snap = await transaction.get(solicitudRef);
-      if (!snap.exists()) {
-        throw this._crearError('solicitud/no-encontrada');
-      }
-
-      if (snap.data().estado !== ESTADOS_SOLICITUD_ACCESO.PENDIENTE) {
-        throw this._crearError('solicitud/ya-resuelta');
-      }
-
-      transaction.update(solicitudRef, {
-        estado,
-        fecha_respuesta: serverTimestamp(),
-        uid_edil_respuesta: uidEdil,
-        uid_usuario_creado: uidUsuarioCreado,
-      });
+  async _api(method, datos) {
+    const token = method === 'PATCH' ? await auth.currentUser?.getIdToken() : null;
+    if (method === 'PATCH' && !token) throw this._crearError('auth/unauthorized');
+    const response = await fetch('/api/access-requests', {
+      method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+      body: JSON.stringify(datos),
+    });
+    return readApiResponse(response, result => {
+      if (method === 'POST' || datos.action === 'reject') return result.ok === true;
+      if (datos.action === 'approve') return typeof result.uid === 'string' && Boolean(result.uid)
+        && typeof result.correoEnviado === 'boolean';
+      return typeof result.correoEnviado === 'boolean';
     });
   },
 

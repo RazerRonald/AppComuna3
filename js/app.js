@@ -364,6 +364,7 @@ function iniciarApp() {
   // 2. Escuchar cambios de hash (navegación SPA)
   window.addEventListener('hashchange', async () => {
     // Destruir componentes que puedan tener suscripciones activas
+    SolicitudAccesoView.destruir();
     try { AdminView.destruir(); }   catch (_) { /* view no montada */ }
     try { PublicoView.destruir(); } catch (_) { /* view no montada */ }
 

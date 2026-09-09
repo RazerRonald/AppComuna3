@@ -318,6 +318,7 @@ const AdminUsuariosView = {
     bodyEl.innerHTML = `
       <form id="form-editar-usuario" novalidate autocomplete="off">
         ${this._buildCamposUsuario('modal-usuario', usuario, { edicion: true })}
+        <button type="button" class="btn btn-outline-secondary mt-3" id="btn-recuperar-usuario">Recuperar actualizacion</button>
         <div id="modal-usuario-error" class="alert alert-danger d-none mt-3" role="alert"></div>
       </form>
     `;
@@ -332,6 +333,16 @@ const AdminUsuariosView = {
       });
     }
 
+    document.getElementById('btn-recuperar-usuario')?.addEventListener('click', async (event) => {
+      event.currentTarget.disabled = true;
+      try {
+        const result = await AuthModel.recuperarActualizacion(uid);
+        if (result.passwordActualizada === false) Toast.advertencia('Perfil recuperado. Vuelve a ingresar la nueva contrasena para cambiarla.');
+        else Toast.exito('Perfil sincronizado.');
+        bsModal.hide();
+      } catch (error) { this._mostrarError(document.getElementById('modal-usuario-error'), error.message); }
+      finally { document.getElementById('btn-recuperar-usuario')?.removeAttribute('disabled'); }
+    });
     bsModal.show();
   },
 
@@ -345,8 +356,9 @@ const AdminUsuariosView = {
       usuario,
       {
         onLoading: (v) => this._setFormLoading('btn-guardar-usuario', v),
-        onSuccess: () => {
-          Toast.exito(i18n.admin.usuariosActualizadoOk);
+        onSuccess: (resultado) => {
+          if (resultado.passwordActualizada === false) Toast.advertencia('Perfil actualizado. No se pudo confirmar el cambio de contrasena; vuelve a intentarlo.');
+          else Toast.exito(i18n.admin.usuariosActualizadoOk);
           bsModal.hide();
         },
         onError: (msg) => this._mostrarError(errorEl, msg),

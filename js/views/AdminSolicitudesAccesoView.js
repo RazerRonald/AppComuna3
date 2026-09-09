@@ -13,6 +13,7 @@ const AdminSolicitudesAccesoView = {
   _unsub: null,
   _solicitudes: [],
   _filtro: 'todas',
+  _busy: false,
   _onVolverDashboard: null,
 
   render({ onVolverDashboard } = {}) {
@@ -20,6 +21,7 @@ const AdminSolicitudesAccesoView = {
     if (!root) return;
 
     this.destruir();
+    this._filtro = 'todas';
     this._onVolverDashboard = onVolverDashboard || null;
 
     root.innerHTML = `
@@ -57,7 +59,8 @@ const AdminSolicitudesAccesoView = {
             <div class="d-flex align-items-center gap-2">
               <label for="filtro-solicitudes-acceso" class="small text-muted fw-600">${i18n.solicitudAcceso.filtrar}</label>
               <select id="filtro-solicitudes-acceso" class="form-select form-select-sm solicitudes-acceso-filtro">
-                <option value="todas">${i18n.solicitudAcceso.todas}</option>
+                <option value="Procesando">En proceso</option>
+                <option value="todas" selected>${i18n.solicitudAcceso.todas}</option>
                 <option value="${ESTADOS_SOLICITUD_ACCESO.PENDIENTE}">${i18n.solicitudAcceso.estadoPendiente}</option>
                 <option value="${ESTADOS_SOLICITUD_ACCESO.APROBADA}">${i18n.solicitudAcceso.estadoAprobada}</option>
                 <option value="${ESTADOS_SOLICITUD_ACCESO.RECHAZADA}">${i18n.solicitudAcceso.estadoRechazada}</option>
@@ -143,12 +146,13 @@ const AdminSolicitudesAccesoView = {
 
     document.getElementById('tabla-solicitudes-acceso-body')?.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-id]');
-      if (!button) return;
+      if (!button || this._busy) return;
       const solicitud = this._solicitudes.find((item) => item.id === button.dataset.id);
       if (!solicitud) return;
 
       if (button.classList.contains('btn-aprobar-acceso')) this._confirmarAprobacion(solicitud);
       if (button.classList.contains('btn-rechazar-acceso')) this._confirmarRechazo(solicitud);
+      if (button.classList.contains('btn-reenviar-acceso')) this._reenviarCorreo(solicitud, button);
       if (button.classList.contains('btn-gmail-acceso')) this._abrirGmail(solicitud);
     });
   },
@@ -169,7 +173,7 @@ const AdminSolicitudesAccesoView = {
 
   _renderResumen() {
     const conteos = {
-      pendientes: this._solicitudes.filter((item) => item.estado === ESTADOS_SOLICITUD_ACCESO.PENDIENTE).length,
+      pendientes: this._solicitudes.filter((item) => ['Pendiente', 'Procesando'].includes(item.estado)).length,
       aprobadas: this._solicitudes.filter((item) => item.estado === ESTADOS_SOLICITUD_ACCESO.APROBADA).length,
       rechazadas: this._solicitudes.filter((item) => item.estado === ESTADOS_SOLICITUD_ACCESO.RECHAZADA).length,
     };
@@ -216,6 +220,7 @@ const AdminSolicitudesAccesoView = {
 
   _buildEstado(estado) {
     const config = {
+      Procesando: ['bg-info-subtle text-info-emphasis', 'En proceso'],
       [ESTADOS_SOLICITUD_ACCESO.PENDIENTE]: ['bg-warning-subtle text-warning-emphasis', i18n.solicitudAcceso.estadoPendiente],
       [ESTADOS_SOLICITUD_ACCESO.APROBADA]: ['bg-success-subtle text-success-emphasis', i18n.solicitudAcceso.estadoAprobada],
       [ESTADOS_SOLICITUD_ACCESO.RECHAZADA]: ['bg-danger-subtle text-danger-emphasis', i18n.solicitudAcceso.estadoRechazada],
@@ -225,6 +230,9 @@ const AdminSolicitudesAccesoView = {
 
   _buildAcciones(solicitud) {
     const id = this._esc(solicitud.id);
+    if (solicitud.estado === 'Procesando' || solicitud.activacion_pendiente) {
+      return '<button type="button" class="btn btn-sm btn-outline-warning btn-aprobar-acceso" data-id="' + id + '">Reintentar acceso</button>';
+    }
     if (solicitud.estado === ESTADOS_SOLICITUD_ACCESO.PENDIENTE) {
       return `
         <div class="d-flex justify-content-end gap-2 flex-wrap">
@@ -240,13 +248,26 @@ const AdminSolicitudesAccesoView = {
 
     if (solicitud.estado === ESTADOS_SOLICITUD_ACCESO.APROBADA) {
       return `
+        <div class="d-flex justify-content-end gap-2 flex-wrap">
+        <span class="small text-muted">Correo: ${this._esc(solicitud.correo_estado || 'Sin confirmar')}</span>
+        <button type="button" class="btn btn-sm btn-outline-success btn-reenviar-acceso" data-id="${id}">Reenviar correo de contrasena</button>
         <button type="button" class="btn btn-sm btn-outline-primary btn-gmail-acceso" data-id="${id}">
           <i class="bi bi-envelope-arrow-up me-1"></i>${i18n.solicitudAcceso.enviarCredenciales}
-        </button>
+        </button></div>
       `;
     }
 
     return '<span class="text-muted small">-</span>';
+  },
+
+  async _reenviarCorreo(solicitud, button) {
+    this._busy = true; button.disabled = true;
+    try {
+      const result = await SolicitudAccesoController.reenviarCorreo(solicitud);
+      if (result.correoEnviado) Toast.exito('Correo de contrasena enviado.');
+      else Toast.advertencia('No se pudo enviar el correo. Espera un minuto y reintenta.');
+    } catch (error) { Toast.error(error.message); }
+    finally { this._busy = false; button.disabled = false; }
   },
 
   _confirmarAprobacion(solicitud) {
@@ -259,9 +280,10 @@ const AdminSolicitudesAccesoView = {
     this._mostrarConfirmacion(i18n.solicitudAcceso.aprobarTitulo, body, 'primary', async (modal) => {
       await SolicitudAccesoController.aprobar(solicitud, {
         onLoading: (loading) => this._setModalLoading(loading),
-        onSuccess: () => {
+        onSuccess: (resultado) => {
           modal.hide();
-          Toast.exito(i18n.solicitudAcceso.aprobadaOk);
+          if (resultado.correoEnviado) Toast.exito(i18n.solicitudAcceso.aprobadaOk);
+          else Toast.advertencia('Cuenta creada. No se pudo confirmar el envio del correo. Usa Reenviar correo de contrasena.');
         },
         onError: (mensaje) => Toast.error(mensaje),
       });

@@ -644,11 +644,10 @@ service cloud.firestore {
     }
 
     match /solicitudes_acceso/{solicitudId} {
-      allow create: if request.auth == null
-        && solicitudAccesoCreacionValida(request.resource.data);
+      allow create: if false; // Solo /api/access-requests, con CAPTCHA y cuotas.
 
       allow get, list: if esEdil();
-      allow update: if solicitudAccesoResolucionValida();
+      allow update: if false; // Solo servidor: reserva, aprobacion y recuperacion.
       allow delete: if false;
     }
 
@@ -663,11 +662,9 @@ service cloud.firestore {
       allow create: if autenticado()
         && usuarioCreadoPorEdilValido(request.resource.data, userId);
 
-      allow update: if esEdil()
-        && usuarioActualizacionValida(request.resource.data, userId);
+      allow update: if false; // Todas las ediciones pasan por el diario del servidor.
 
-      allow delete: if esEdil()
-        && request.auth.uid != userId;
+      allow delete: if false; // Coordinar con operaciones pendientes de Auth.
     }
   }
 }

@@ -5,12 +5,17 @@
  */
 
 import SolicitudAccesoController from '../controllers/SolicitudAccesoController.js';
+import AccessCaptcha from '../components/AccessCaptcha.js';
 import Toast from '../components/Toast.js';
 import { i18n } from '../config/i18n.js';
 import { TIPOS_DOCUMENTO } from '../config/collections.js';
 
 const SolicitudAccesoView = {
+  _captcha: null,
+  _loading: false,
+
   render() {
+    this.destruir();
     const root = document.getElementById('app-root');
     if (!root) return;
 
@@ -93,8 +98,9 @@ const SolicitudAccesoView = {
               </div>
             </div>
 
+            <div id="access-captcha" class="mt-4"></div>
             <div class="d-flex gap-2 mt-4 flex-wrap">
-              <button type="submit" class="btn-jal-primary" id="btn-enviar-solicitud-acceso">
+              <button type="submit" class="btn-jal-primary" id="btn-enviar-solicitud-acceso" disabled>
                 <span id="btn-enviar-solicitud-text">
                   <i class="bi bi-send me-2"></i>${i18n.solicitudAcceso.enviar}
                 </span>
@@ -110,9 +116,19 @@ const SolicitudAccesoView = {
     `;
 
     this._bindEvents();
+    this._captcha = new AccessCaptcha(document.getElementById('access-captcha'),
+      () => this._setLoading(this._loading),
+      message => {
+        const error = document.getElementById('solicitud-acceso-error');
+        if (error) { error.textContent = message; error.classList.remove('d-none'); }
+      });
+    this._captcha.mount();
   },
 
+  destruir() { this._captcha?.destroy(); this._captcha = null; this._loading = false; },
+
   _bindEvents() {
+    document.getElementById('form-solicitud-acceso')?.addEventListener('reset', () => this._captcha?.reset());
     document.getElementById('form-solicitud-acceso')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       await this._enviar();
@@ -128,7 +144,9 @@ const SolicitudAccesoView = {
     const form = document.getElementById('form-solicitud-acceso');
     const errorEl = document.getElementById('solicitud-acceso-error');
     const exitoEl = document.getElementById('solicitud-acceso-exito');
-    if (!form) return;
+    if (!form || this._loading) return;
+    if (!this._captcha?.token) { Toast.error("Completa la verificacion de seguridad."); return; }
+    const captchaToken = this._captcha.token;
 
     errorEl?.classList.add('d-none');
     exitoEl?.classList.add('d-none');
@@ -149,14 +167,16 @@ const SolicitudAccesoView = {
           errorEl.focus();
         }
       },
-    });
+    }, captchaToken);
+    this._captcha?.reset();
   },
 
   _setLoading(cargando) {
+    this._loading = cargando;
     const button = document.getElementById('btn-enviar-solicitud-acceso');
     const text = document.getElementById('btn-enviar-solicitud-text');
     const loading = document.getElementById('btn-enviar-solicitud-loading');
-    if (button) button.disabled = cargando;
+    if (button) button.disabled = cargando || !this._captcha?.token;
     text?.classList.toggle('d-none', cargando);
     loading?.classList.toggle('d-none', !cargando);
   },

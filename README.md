@@ -114,3 +114,91 @@ Nota: `FIREBASE_WEB_API_KEY` la usa el proxy desde servidor. Si se restringe sol
 - Confirmar que la ciudad de expedicion del documento se ve en perfil y se usa en solicitudes de carta.
 - Intentar modificar desde DevTools los datos personales de una solicitud; Firestore debe rechazar valores que no coincidan con `users/{uid}`.
 - Editar correo o contrasena de un usuario con `/api/admin-users` configurado.
+
+## Recuperacion de cuentas y proteccion de solicitudes
+
+Para trabajar localmente con las APIs, usar `npm run dev` y abrir
+`http://127.0.0.1:3000`. Este servidor carga las variables de `.env` si existe
+y ejecuta los mismos handlers de Vercel. `JAL_DEV_PORT` permite cambiar el puerto.
+Live Server y otros servidores exclusivamente estaticos no ejecutan `/api/*`:
+pueden devolver HTML, incluso con estado 200, donde el formulario espera JSON.
+La interfaz detecta esa respuesta y muestra indisponibilidad, sin aceptar un envio.
+El servidor local usa la configuracion Firebase de la aplicacion; para pruebas
+aisladas usar las suites con emuladores descritas mas abajo.
+
+Los endpoints administrativos ahora usan Firebase Admin SDK y un registro privado
+de operaciones en Firestore. Las credenciales de servicio existentes siguen siendo
+compatibles. La cuenta de servicio necesita permisos para gestionar usuarios de
+Firebase Auth y leer/escribir Firestore. Todas las ediciones de perfil pasan por
+`/api/admin-users`; la creacion manual de usuarios por un Edil conserva su flujo.
+
+Las solicitudes publicas pasan por `/api/access-requests`. Ya no se admite escritura
+directa desde el navegador. Se valida Turnstile en el servidor, incluyendo dominio
+y accion, y se limita a 5 intentos validos por IP/hora y 200 diarios para el proyecto.
+Los duplicados por correo o documento reciben la misma confirmacion sin crear otra
+solicitud. Las solicitudes antiguas se comprueban tambien, sin migracion obligatoria.
+
+Para activar estos cambios en un despliegue:
+
+1. Crear un widget Turnstile para los dominios autorizados y configurar
+   `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` y `TURNSTILE_HOSTNAMES` en Vercel.
+   Las vistas previas necesitan su propio dominio autorizado o un dominio de prueba
+   estable. No usar claves de prueba en produccion.
+2. Confirmar `FIREBASE_SERVICE_ACCOUNT` (o sus dos variables alternativas),
+   `FIREBASE_PROJECT_ID` y `FIREBASE_WEB_API_KEY`.
+3. Desplegar primero el backend y frontend nuevos, comprobar la configuracion y
+   publicar inmediatamente las reglas de este cambio con Firebase CLI o consola.
+   Durante el intervalo las reglas anteriores siguen admitiendo el flujo viejo:
+   la proteccion no se considera activa hasta publicar las reglas nuevas. Las
+   pestañas antiguas deben recargarse. Coordinar en una ventana de mantenimiento.
+4. Validar solicitud, aprobacion, recuperacion, correo y edicion de perfil con
+   cuentas de prueba propias del entorno. Firebase Rules no se publica con Vercel.
+5. Opcional: habilitar TTL sobre `expiresAt` en `access_limits` para retirar los
+   contadores vencidos. El vencimiento de la cuota no depende del proceso TTL.
+
+Si falta Turnstile, el formulario muestra indisponibilidad y no acepta envios sin
+proteccion. El resto del sitio sigue disponible. Las claves nunca se guardan en Git.
+Si el sitio tiene otro proxy delante de Vercel, comprobar la IP recibida para evitar
+que varios visitantes compartan una cuota inesperadamente.
+
+### Recuperacion operativa
+
+- **Reintentar acceso:** retoma la cuenta reservada, inicialmente deshabilitada,
+  sin generar otro UID. El perfil y la aprobacion se guardan juntos antes de activar
+  la cuenta. Una solicitud en proceso no puede rechazarse.
+- **Reenviar correo de contrasena:** solo envia el restablecimiento; no crea otra
+  cuenta. Hay un minuto de espera entre intentos. "Enviado" confirma la aceptacion
+  de la solicitud por Firebase, no la entrega en la bandeja del destinatario.
+- **Recuperar actualizacion:** en el formulario de edicion, retoma exactamente los
+  datos de la operacion pendiente. Un cambio nuevo o una eliminacion se bloquea
+  mientras exista una actualizacion incompleta. Las contrasenas no se guardan en
+  el registro: si no se confirmaron, deben ingresarse nuevamente.
+- Tras una interrupcion abrupta, esperar dos minutos para recuperar. Los handlers
+  tienen un maximo de 60 segundos y la reserva dura 120 segundos. No aumentar el
+  tiempo de ejecucion de Vercel sin ajustar y probar esta relacion.
+- No borrar manualmente `access_operations` o `user_operations` pendientes: son la
+  evidencia necesaria para recuperar resultados inciertos. Los historiales
+  completados contienen datos personales; aplicar la politica de retencion del
+  proyecto. `access_duplicates` contiene hashes y referencias, no correos en claro.
+
+### Pruebas aisladas
+
+Requiere Node 24, Java 21+ y Chromium de Playwright:
+
+```powershell
+npm ci
+npx playwright install chromium
+npm test
+npx firebase emulators:start --only auth,firestore --project demo-jal-audit --config firebase.test.json
+# En otra terminal, con los emuladores activos:
+npm run test:integration
+npm run test:web
+npm audit --omit=dev
+```
+
+La suite web sirve el proyecto en `127.0.0.1:5501`, sustituye la configuracion de
+Firebase exclusivamente en el servidor de pruebas, conecta las instancias primaria
+y secundaria a emuladores y bloquea accesos del navegador a datos de produccion.
+CAPTCHA, Google OAuth y envio de correo se simulan solo en las pruebas. Las capturas
+y los resultados se guardan en `reports/audit/`. No se prueba subida real a Drive,
+entrega real de correo ni configuracion de Vercel con estas suites.

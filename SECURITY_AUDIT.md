@@ -1,5 +1,7 @@
 # Auditoría de Seguridad — JAL Comuna 3 Manrique
 
+> Estado actualizado: ver [correcciones y pruebas](AUDIT_REMEDIATION.md). El cuerpo F1–F9 es historico.
+
 > Auditor: revisión senior de seguridad de aplicación · Fecha: 2026-07-16
 > Alcance: código del repositorio (frontend SPA + funciones serverless + reglas Firestore). No se ejecutaron exploits reales ni se enviaron datos fuera del entorno.
 
@@ -162,9 +164,13 @@
 
 ---
 
-## Fase 4 — Estado: PENDIENTE DE APROBACIÓN
+## Estado del informe historico
 
-Este reporte corresponde a las Fases 1-3. **No he modificado código todavía.** Tras tu OK procederé con la Fase 4:
-1. Crear rama `security/audit-fixes`.
-2. Corregir por severidad en **commits separados** (los que sean de código: F1, F4 server/cliente, F5, F7, y endurecimiento de reglas para F3).
-3. Marcar como **ACCIÓN MANUAL** lo que requiera consola/infra o rotación de secretos (App Check, política Firebase, rotación de contraseñas existentes).
+Los hallazgos F1, F3, F4, F5 y F7 recibieron correcciones en los commits
+5acd4fa, 579a29c, 60262e3, 6b1ae48 y 679146d, incorporados en main.
+F9 se mitigo con F1. Los parrafos anteriores se conservan como evidencia de la
+revision original y no describen el estado actual de esas correcciones.
+
+La revision posterior de consistencia y abuso se documenta en
+[AUDIT_REMEDIATION.md](AUDIT_REMEDIATION.md). La publicacion de reglas, configuracion
+de proveedores y verificacion en produccion son independientes de los cambios locales.

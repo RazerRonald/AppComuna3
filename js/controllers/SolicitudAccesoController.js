@@ -17,7 +17,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SolicitudAccesoController = {
   /** Registra una solicitud publica para unicamente el rol estudiante. */
-  async crear(datos, { onLoading, onSuccess, onError }) {
+  async crear(datos, { onLoading, onSuccess, onError }, captchaToken) {
     const solicitud = this._normalizar(datos);
     const error = this._validar(solicitud);
     if (error) {
@@ -27,7 +27,7 @@ const SolicitudAccesoController = {
 
     onLoading(true);
     try {
-      const id = await SolicitudAccesoModel.crear(solicitud);
+      const id = await SolicitudAccesoModel.crear(solicitud, captchaToken);
       onSuccess(id);
     } catch (err) {
       console.error('[SolicitudAccesoController.crear]', err);
@@ -49,8 +49,7 @@ const SolicitudAccesoController = {
   },
 
   /**
-   * Crea el estudiante con la API de autenticacion existente y luego marca
-   * la solicitud como aprobada.
+   * Solicita al servidor un alta recuperable; informa aparte el resultado del correo.
    */
   async aprobar(solicitud, { onLoading, onSuccess, onError }) {
     const sesion = AuthController.getSesion();
@@ -59,23 +58,14 @@ const SolicitudAccesoController = {
       return;
     }
 
-    if (solicitud?.estado !== ESTADOS_SOLICITUD_ACCESO.PENDIENTE) {
+    if (!['Pendiente', 'Procesando', 'Aprobada'].includes(solicitud?.estado)) {
       onError(i18n.solicitudAcceso.yaResuelta);
       return;
     }
 
     onLoading(true);
     try {
-      const usuario = await this._crearEstudiante(solicitud);
-      await SolicitudAccesoModel.resolver(
-        solicitud.id,
-        ESTADOS_SOLICITUD_ACCESO.APROBADA,
-        sesion.uid,
-        usuario.uid,
-      );
-      // El estudiante establece su propia contrasena mediante el correo oficial
-      // de Firebase. La cuenta se creo con una clave aleatoria de un solo uso.
-      await this._enviarResetPassword(solicitud.email);
+      const usuario = await SolicitudAccesoModel.resolver(solicitud.id, 'approve');
       onSuccess(usuario);
     } catch (err) {
       console.error('[SolicitudAccesoController.aprobar]', err);
@@ -100,12 +90,7 @@ const SolicitudAccesoController = {
 
     onLoading(true);
     try {
-      await SolicitudAccesoModel.resolver(
-        solicitud.id,
-        ESTADOS_SOLICITUD_ACCESO.RECHAZADA,
-        sesion.uid,
-        null,
-      );
+      await SolicitudAccesoModel.resolver(solicitud.id, 'reject');
       onSuccess();
     } catch (err) {
       console.error('[SolicitudAccesoController.rechazar]', err);
@@ -142,58 +127,8 @@ const SolicitudAccesoController = {
     return `https://mail.google.com/mail/?${params.toString()}`;
   },
 
-  /**
-   * Genera una contrasena aleatoria de un solo uso (no derivable de datos
-   * publicos). El estudiante nunca la usa: la reemplaza al establecer la suya.
-   * @private
-   */
-  _generarPasswordSegura() {
-    const buffer = new Uint8Array(18);
-    (globalThis.crypto || window.crypto).getRandomValues(buffer);
-    const base = btoa(String.fromCharCode(...buffer))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-    return `Jal-${base}`;
-  },
-
-  /**
-   * Dispara el correo de restablecimiento de forma best-effort: si falla, la
-   * cuenta ya existe y el edil puede reenviarlo, por lo que no aborta el flujo.
-   * @private
-   */
-  _enviarResetPassword(email) {
-    return new Promise((resolve) => {
-      AuthController.enviarCorreoRestablecerPassword(email, {
-        onLoading: () => {},
-        onSuccess: resolve,
-        onError: () => resolve(),
-      });
-    });
-  },
-
-  _crearEstudiante(solicitud) {
-    const password = this._generarPasswordSegura();
-    return new Promise((resolve, reject) => {
-      AuthController.crearEstudiante(
-        {
-          email: solicitud.email,
-          nombre: solicitud.nombre,
-          primer_apellido: solicitud.primer_apellido,
-          segundo_apellido: solicitud.segundo_apellido,
-          tipo_documento: solicitud.tipo_documento,
-          numero_documento: solicitud.numero_documento,
-          ciudad_documento: solicitud.ciudad_documento,
-          password,
-          confirmarPassword: password,
-        },
-        {
-          onLoading: () => {},
-          onSuccess: resolve,
-          onError: (mensaje) => reject(this._crearError('usuario/no-creado', mensaje)),
-        },
-      );
-    });
+  async reenviarCorreo(solicitud) {
+    return SolicitudAccesoModel.resolver(solicitud.id, 'email');
   },
 
   _normalizar(datos = {}) {
@@ -238,7 +173,7 @@ const SolicitudAccesoController = {
     if (err.code === 'unavailable' || err.code === 'network-request-failed') {
       return i18n.auth.errorRed;
     }
-    return i18n.solicitudAcceso.errorGenerico;
+    return err.message && err.message !== err.code ? err.message : i18n.solicitudAcceso.errorGenerico;
   },
 
   _crearError(code, message) {

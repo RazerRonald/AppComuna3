@@ -169,9 +169,7 @@ const AuthModel = {
   },
 
   /**
-   * Actualiza un perfil de usuario. Si cambia correo o contrasena, usa el
-   * endpoint serverless porque Firebase Auth no permite esa operacion desde
-   * el cliente para cuentas de terceros.
+   * Todas las ediciones usan el servidor para coordinar Auth, perfil y recuperacion.
    *
    * @param {string} uid
    * @param {Object} datos
@@ -195,46 +193,8 @@ const AuthModel = {
       throw this._crearError('auth/no-self-demote');
     }
 
-    await this._asegurarDocumentoDisponible(perfil.numero_documento, uid);
-
-    const password = String(datos?.password || '');
-    const emailActual = this._normalizarEmail(usuarioActual?.email || usuarioActual?.correo);
-    const emailAuthActual = auth.currentUser?.uid === uid
-      ? this._normalizarEmail(auth.currentUser.email)
-      : '';
-    const emailReferencia = emailActual || emailAuthActual;
-    const cambiaEmail = !emailReferencia || perfil.email !== emailReferencia;
-    const requiereBackendAuth = cambiaEmail || Boolean(password);
-
-    if (requiereBackendAuth) {
-      const usuario = await this._actualizarUsuarioViaApi(uid, perfil, password);
-      if (auth.currentUser?.uid === uid) {
-        await auth.currentUser.reload().catch(() => {});
-      }
-      this._actualizarSesionSiEsActual(uid, usuario);
-      return usuario;
-    }
-
-    const perfilRef = doc(db, COL_USERS, uid);
-    const perfilActualSnap = await getDoc(perfilRef);
-    const perfilActual = perfilActualSnap.exists() ? perfilActualSnap.data() : {};
-    const payload = {
-      ...perfil,
-      actualizadoEn: serverTimestamp(),
-    };
-    if (Object.prototype.hasOwnProperty.call(perfilActual, 'creadoEn')) {
-      payload.creadoEn = perfilActual.creadoEn;
-    }
-    if (Object.prototype.hasOwnProperty.call(perfilActual, 'creadoPor')) {
-      payload.creadoPor = perfilActual.creadoPor;
-    }
-
-    await setDoc(perfilRef, payload);
-
-    const usuario = this._normalizarUsuario({
-      ...usuarioActual,
-      ...perfil,
-    });
+    const usuario = await this._actualizarUsuarioViaApi(uid, perfil, String(datos?.password || ''));
+    if (auth.currentUser?.uid === uid) await auth.currentUser.reload().catch(() => {});
     this._actualizarSesionSiEsActual(uid, usuario);
     return usuario;
   },
@@ -473,7 +433,21 @@ const AuthModel = {
       throw this._crearError(payload.code || `api/${response.status}`, payload.error);
     }
 
-    return this._normalizarUsuario(payload.usuario || perfil);
+    return { ...this._normalizarUsuario(payload.usuario || perfil), passwordActualizada: payload.passwordActualizada };
+  },
+
+  async recuperarActualizacion(uid) {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw this._crearError('auth/unauthorized');
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ uid, action: 'recover' }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw this._crearError(result.code, result.error);
+    const usuario = this._normalizarUsuario(result.usuario);
+    this._actualizarSesionSiEsActual(uid, usuario);
+    return result;
   },
 
   async _eliminarUsuarioViaApi(uid) {
