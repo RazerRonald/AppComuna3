@@ -1,6 +1,4 @@
-const { services } = require('../server/firebase');
 const { json, body, edil, failure, problem } = require('../server/http');
-const { accessService } = require('../server/access');
 const { config, verifyCaptcha, clientIp, submit } = require('../server/public-access');
 async function sendReset(email) {
   const key = process.env.FIREBASE_WEB_API_KEY;
@@ -19,8 +17,14 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const settings = config(); const ip = clientIp(req);
       await verifyCaptcha(input.captchaToken, ip, settings);
+      // Load Firebase only after Turnstile succeeds. Keeping this import inside
+      // the handler also turns initialization failures into a controlled JSON
+      // response instead of crashing the Vercel Function at module load time.
+      const { services } = require('../server/firebase');
       return json(res, 202, await submit({ db: services().db, input: input.datos, ip, secret: settings.secret }));
     }
+    const { services } = require('../server/firebase');
+    const { accessService } = require('../server/access');
     const deps = services(); const actor = await edil(req, deps); const service = accessService({ ...deps, sendReset });
     if (input.action === 'approve') return json(res, 200, await service.approve(input.id, actor));
     if (input.action === 'reject') return json(res, 200, await service.reject(input.id, actor));
